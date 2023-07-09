@@ -1,3 +1,5 @@
+![The featured graphic for the App](/art/featured.png)
+
 # Aevum
 
 A time management tool for Jira
