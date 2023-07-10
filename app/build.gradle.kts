@@ -89,7 +89,6 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.timber)
     implementation(libs.compose.nav)
-//    implementation(libs.iconics)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

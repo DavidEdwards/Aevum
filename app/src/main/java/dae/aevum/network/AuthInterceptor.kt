@@ -26,7 +26,7 @@ class AuthInterceptor(
             Base64.NO_WRAP
         )
         val url = chain.request().url.toString()
-            .replace("https://baseurl", activeUser.instanceUrl)
+            .replace("https://baseurl", activeUser.instanceUrl.removeSuffix("/"))
 
         val newRequest = chain.request().newBuilder()
             .addHeader(

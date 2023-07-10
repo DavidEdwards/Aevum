@@ -9,12 +9,10 @@ import androidx.lifecycle.viewModelScope
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.ui.models.UserUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class UserViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
