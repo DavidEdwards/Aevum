@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dae.aevum.domain.repositories.AudioRepository
 import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.ui.models.WorklogUiModel
+import dae.aevum.utils.IssueId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
@@ -56,6 +57,17 @@ class WorklogViewModel @Inject constructor(
     fun updateWorklog(worklogId: Long, from: Instant, to: Instant, summary: String) {
         viewModelScope.launch {
             jiraRepository.updateWorklog(worklogId, from, to, summary)
+        }
+    }
+
+    fun splitWorklog(
+        worklogId: Long,
+        issueId: IssueId,
+        splitTime: Instant,
+        withNewId: suspend (Long) -> Unit
+    ) {
+        viewModelScope.launch {
+            jiraRepository.splitWorklog(worklogId, issueId, splitTime, withNewId)
         }
     }
 

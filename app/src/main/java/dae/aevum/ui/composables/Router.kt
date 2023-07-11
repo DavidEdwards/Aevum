@@ -54,6 +54,8 @@ import dae.aevum.ui.composables.issues.IssueScreen
 import dae.aevum.ui.composables.users.UserListScreen
 import dae.aevum.ui.composables.worklogs.WorklogEditorScreen
 import dae.aevum.ui.composables.worklogs.WorklogListScreen
+import dae.aevum.ui.composables.worklogs.WorklogSplitterIssueScreen
+import dae.aevum.ui.composables.worklogs.WorklogSplitterTimeScreen
 import dae.aevum.ui.models.UserUiModel
 import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.ui.viewmodels.UserViewModel
@@ -73,6 +75,20 @@ sealed class Screen(
     object WorklogEditor :
         Screen("worklogEditor/{worklogId}", R.string.worklog_editor, Icons.Outlined.Edit)
 
+    object WorklogSplitIssueSelector :
+        Screen(
+            "worklog/split/issueSelector/{worklogId}",
+            R.string.issue_selector,
+            Icons.Outlined.Edit
+        )
+
+    object WorklogSplitTimeSelector :
+        Screen(
+            "worklog/split/timeSelector/{worklogId}/{issueId}",
+            R.string.time_selector,
+            Icons.Outlined.Edit
+        )
+
     object WorklogNewDialog :
         Screen("worklog/new/{worklogId}", R.string.worklog_new_dialog, Icons.Outlined.Create)
 
@@ -88,6 +104,8 @@ val screens = listOf(
     Screen.WorklogEditor,
     Screen.WorklogNewDialog,
     Screen.UserNewDialog,
+    Screen.WorklogSplitIssueSelector,
+    Screen.WorklogSplitTimeSelector,
 )
 
 val bottomNav = listOf(
@@ -307,32 +325,48 @@ private fun AppNavHost(
             }
 
             composable(Screen.Issues.route) {
-                IssueListScreen(onNavigateToIssue = { issueId ->
-                    navController.navigate("issueView/${issueId.value}")
-                })
+                val viewModel: IssueViewModel = hiltViewModel()
+                IssueListScreen(
+                    onNavigateToIssue = { issueId ->
+                        navController.navigate("issueView/${issueId.value}")
+                    },
+                    onTogglePinIssue = { issueId ->
+                        viewModel.toggleIssuePin(issueId)
+                    }
+                )
             }
             composable(Screen.IssueView.route) { backStackEntry ->
                 val viewModel: IssueViewModel = hiltViewModel()
                 val id = backStackEntry.arguments?.getString("issueId")?.let { IssueId(it) }
-                IssueScreen(issueId = id, stopLogging = {
-                    navController.navigate("worklog/new/$it")
-                }, onUpdate = { worklogId, from, to, summary ->
-                    viewModel.updateWorklog(worklogId, from, to, summary)
-                }, deleteWorklog = { worklogId ->
-                    viewModel.deleteLog(worklogId = worklogId)
-                })
+                IssueScreen(
+                    issueId = id,
+                    stopLogging = {
+                        navController.navigate("worklog/new/$it")
+                    },
+                    onUpdate = { worklogId, from, to, summary ->
+                        viewModel.updateWorklog(worklogId, from, to, summary)
+                    },
+                    deleteWorklog = { worklogId ->
+                        viewModel.deleteLog(worklogId = worklogId)
+                    }
+                )
             }
             composable(Screen.Worklogs.route) {
                 val viewModel: WorklogViewModel = hiltViewModel()
-                WorklogListScreen(onNavigateToEditor = { worklogId ->
-                    navController.navigate("worklogEditor/${worklogId}")
-                }, onUpdate = { worklogId, from, to, summary ->
-                    viewModel.updateWorklog(worklogId, from, to, summary)
-                }, stopLogging = { worklogId ->
-                    navController.navigate("worklog/new/$worklogId")
-                }, deleteWorklog = { worklogId ->
-                    viewModel.deleteLog(worklogId = worklogId)
-                })
+                WorklogListScreen(
+                    onNavigateToEditor = { worklogId ->
+                        navController.navigate("worklogEditor/${worklogId}")
+                    },
+                    onUpdate = { worklogId, from, to, summary ->
+                        viewModel.updateWorklog(worklogId, from, to, summary)
+                    },
+                    stopLogging = { worklogId ->
+                        navController.navigate("worklog/new/$worklogId")
+                    },
+                    deleteWorklog = { worklogId ->
+                        viewModel.deleteLog(worklogId = worklogId)
+                    }
+                )
             }
             composable(Screen.WorklogEditor.route) { backStackEntry ->
                 val viewModel: WorklogViewModel = hiltViewModel()
@@ -343,8 +377,45 @@ private fun AppNavHost(
                         viewModel.updateWorklog(id, from, to, summary)
                         navController.popBackStack()
                     },
+                    viewModel = viewModel,
+                    splitWorklog = { id ->
+                        navController.navigate("worklog/split/issueSelector/$id")
+                    }
+                )
+            }
+            composable(Screen.WorklogSplitIssueSelector.route) { backStackEntry ->
+                val viewModel: WorklogViewModel = hiltViewModel()
+                val worklogId = backStackEntry.arguments?.getString("worklogId")?.toLong()
+                WorklogSplitterIssueScreen(
+                    worklogId = worklogId,
+                    issueSelected = { id ->
+                        navController.navigate("worklog/split/timeSelector/$worklogId/${id.value}")
+                    },
                     viewModel = viewModel
                 )
+            }
+            composable(Screen.WorklogSplitTimeSelector.route) { backStackEntry ->
+                val viewModel: WorklogViewModel = hiltViewModel()
+                val worklogId = backStackEntry.arguments?.getString("worklogId")?.toLong()
+                val issueId = backStackEntry.arguments?.getString("issueId")
+
+                if (worklogId != null && issueId != null) {
+                    WorklogSplitterTimeScreen(
+                        worklogId = worklogId,
+                        issueId = IssueId(issueId),
+                        viewModel = viewModel,
+                        splitWorklog = { oldWorklogId, newIssueId, splitTime ->
+                            viewModel.splitWorklog(
+                                oldWorklogId,
+                                newIssueId,
+                                splitTime
+                            ) { newWorklogId ->
+                                navController.popBackStack(Screen.Worklogs.route, false)
+                                navController.navigate("worklogEditor/${newWorklogId}")
+                            }
+                        }
+                    )
+                }
             }
 
             dialog(Screen.WorklogNewDialog.route) { backStackEntry ->

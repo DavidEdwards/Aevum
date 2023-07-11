@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material3.Card
@@ -193,6 +194,7 @@ fun WorklogDetails(
     modifier: Modifier = Modifier,
     @PreviewParameter(SampleWorklogUiModelProvider::class, 1) model: WorklogUiModel,
     updateWorklog: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
+    splitWorklog: (Long) -> Unit = {}
 ) {
     var summary by remember {
         mutableStateOf(model.comment)
@@ -201,17 +203,35 @@ fun WorklogDetails(
         modifier = modifier
             .fillMaxWidth()
     ) {
-        OutlinedButton(
-            modifier = modifier,
-            onClick = {
-                updateWorklog(model.workId, model.from, model.to, summary)
-            }) {
-            Icon(
-                imageVector = Icons.Default.Done,
-                contentDescription = stringResource(R.string.save)
-            )
-            Text(text = stringResource(R.string.save))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            OutlinedButton(
+                modifier = modifier,
+                onClick = {
+                    updateWorklog(model.workId, model.from, model.to, summary)
+                }) {
+                Icon(
+                    imageVector = Icons.Default.Done,
+                    contentDescription = stringResource(R.string.save)
+                )
+                Text(text = stringResource(R.string.save))
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            OutlinedButton(
+                modifier = modifier,
+                onClick = {
+                    splitWorklog(model.workId)
+                }) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = stringResource(R.string.split)
+                )
+                Text(text = stringResource(R.string.split))
+            }
         }
+        Spacer(modifier = Modifier.height(8.dp))
         Text(text = stringResource(R.string.issue_id_x, model.issueId.value))
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = stringResource(R.string.author_x, model.author))

@@ -32,7 +32,8 @@ import java.time.Instant
 fun IssueListScreen(
     modifier: Modifier = Modifier,
     viewModel: IssueViewModel = hiltViewModel(),
-    onNavigateToIssue: (IssueId) -> Unit
+    onNavigateToIssue: (IssueId) -> Unit,
+    onTogglePinIssue: (IssueId) -> Unit = {}
 ) {
     val activeUser by viewModel.activeUser.collectAsState(initial = null)
     if (activeUser == null) {
@@ -45,6 +46,21 @@ fun IssueListScreen(
         viewModel.refreshIssues()
     }
 
+    IssueList(
+        modifier = modifier,
+        viewModel = viewModel,
+        onIssueSelected = onNavigateToIssue,
+        onTogglePinIssue = onTogglePinIssue
+    )
+}
+
+@Composable
+fun IssueList(
+    modifier: Modifier = Modifier,
+    viewModel: IssueViewModel = hiltViewModel(),
+    onIssueSelected: (IssueId) -> Unit,
+    onTogglePinIssue: ((IssueId) -> Unit)? = null
+) {
     val searchResult by viewModel.filteredIssues.collectAsState()
 
     PullToRefreshList(
@@ -89,10 +105,8 @@ fun IssueListScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 IssueCard(
                     issue = issueUiModel,
-                    onNavigateToIssue = onNavigateToIssue,
-                    onTogglePinIssue = { issueId ->
-                        viewModel.toggleIssuePin(issueId)
-                    }
+                    onNavigateToIssue = onIssueSelected,
+                    onTogglePinIssue = onTogglePinIssue
                 )
             }
         }

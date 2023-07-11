@@ -39,4 +39,12 @@
     <string name="account_not_verified">Could not verify your account. Please check your details.</string>
     <string name="worklogs_posted_today_already">Worklogs posted today already</string>
     <string name="bad_instance_url">The instance is not a correct URL. Please try again.</string>
+    <string name="issue_selector">Issue Selector</string>
+    <string name="time_selector">Time Selector</string>
+    <string name="split">Split</string>
+    <string name="time_start">Start:\n%1$s</string>
+    <string name="time_old_duration">Old duration:\n%1$s</string>
+    <string name="time_new_duration">New duration:\n%1$s</string>
+    <string name="splitting_from_to_issue">Splitting from %1$s to issue %2$s</string>
+    <string name="choose_time">Please choose where to split the time:</string>
 </resources>

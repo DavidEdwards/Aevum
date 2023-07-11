@@ -46,7 +46,7 @@ fun IssueCard(
     @PreviewParameter(SampleIssueUiModelProvider::class, 1) issue: IssueUiModel,
     modifier: Modifier = Modifier,
     onNavigateToIssue: (IssueId) -> Unit = {},
-    onTogglePinIssue: (IssueId) -> Unit = {},
+    onTogglePinIssue: ((IssueId) -> Unit)? = null,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -80,22 +80,22 @@ fun IssueCard(
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .align(Alignment.CenterVertically)
-            ) {
-                CircleButton(
-                    active = issue.pinned,
-                    icon = Icons.Outlined.Place,
-                    iconContentDescription = stringResource(R.string.pin_this_issue)
+            if (onTogglePinIssue != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .align(Alignment.CenterVertically)
                 ) {
-                    onTogglePinIssue(issue.id)
+                    CircleButton(
+                        active = issue.pinned,
+                        icon = Icons.Outlined.Place,
+                        iconContentDescription = stringResource(R.string.pin_this_issue)
+                    ) {
+                        onTogglePinIssue(issue.id)
+                    }
                 }
             }
         }
-
-
     }
 }
 

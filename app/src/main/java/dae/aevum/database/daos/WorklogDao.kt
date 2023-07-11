@@ -13,7 +13,7 @@ import java.time.Instant
 @Dao
 interface WorklogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addWork(entity: WorklogEntity)
+    suspend fun addWork(entity: WorklogEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addWorks(entity: List<WorklogEntity>)

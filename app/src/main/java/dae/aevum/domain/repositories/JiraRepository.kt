@@ -49,6 +49,13 @@ interface JiraRepository {
     fun getWorklogsToday(): Flow<List<WorklogEntity>>
     suspend fun postPendingWorklogs(): List<WorklogEntity>
     suspend fun updateWorklog(worklogId: Long, from: Instant, to: Instant, summary: String)
+    suspend fun splitWorklog(
+        worklogId: Long,
+        newIssueId: IssueId,
+        splitAt: Instant,
+        withNewId: suspend (Long) -> Unit = {}
+    ): Boolean
+
     suspend fun toggleIssuePin(issueId: IssueId)
 }
 
@@ -207,7 +214,7 @@ class JiraRepositoryImpl(
             ?: return
 
         val now = Instant.now()
-        return database.worklogDao().addWork(
+        database.worklogDao().addWork(
             WorklogEntity(
                 workId = 0L,
                 issueId = issueId,
@@ -318,6 +325,39 @@ class JiraRepositoryImpl(
             summary = summary
         )
         database.worklogDao().updateWork(newEntity)
+    }
+
+    override suspend fun splitWorklog(
+        worklogId: Long,
+        newIssueId: IssueId,
+        splitAt: Instant,
+        withNewId: suspend (Long) -> Unit
+    ): Boolean {
+        val entity = database.worklogDao().findWorkById(worklogId)
+
+        if (!entity.pending || entity.active) {
+            Timber.e("Tried to split either a worklog that is already sent or an active log. Only non-active, pending logs can be split.")
+            return false
+        }
+
+        val firstEntity = entity.copy(
+            to = splitAt
+        )
+        val secondEntity = entity.copy(
+            workId = 0,
+            issueId = newIssueId,
+            from = splitAt,
+            summary = ""
+        )
+
+        val id = database.withTransaction {
+            database.worklogDao().updateWork(firstEntity)
+            database.worklogDao().addWork(secondEntity)
+        }
+
+        withNewId(id)
+
+        return true
     }
 
     override suspend fun toggleIssuePin(issueId: IssueId) {
