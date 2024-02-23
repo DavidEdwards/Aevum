@@ -49,6 +49,9 @@ interface JiraRepository {
     fun getWorklogsToday(): Flow<List<WorklogEntity>>
     suspend fun postPendingWorklogs(): List<WorklogEntity>
     suspend fun updateWorklog(worklogId: Long, from: Instant, to: Instant, summary: String)
+    suspend fun incrementWorklogTime(worklogId: Long, amount: Long)
+    suspend fun decrementWorklogTime(worklogId: Long, amount: Long)
+    suspend fun moveWorklogIssue(worklogId: Long, issueId: IssueId)
     suspend fun splitWorklog(
         worklogId: Long,
         newIssueId: IssueId,
@@ -151,7 +154,10 @@ class JiraRepositoryImpl(
 
             yield()
             val response = withContext(Dispatchers.IO) {
-                val call = jira.listWorklogsFor(issueId.value)
+                val call = jira.listWorklogsFor(
+                    issueId.value,
+                    System.currentTimeMillis() - JiraService.ONE_WEEK_IN_MILLIS
+                )
                 call.execute()
             }
 
@@ -309,6 +315,17 @@ class JiraRepositoryImpl(
 
         database.worklogDao().updateWorklogs(updatedWorklogs)
 
+        // Now we can remove non-pending and update from Jira
+        val noLongerPendingWorklogs = updatedWorklogs.filter { it.pending.not() }
+        noLongerPendingWorklogs.forEach {
+            database.worklogDao().deleteWork(it)
+        }
+
+        val issuesWithNewUpdates = noLongerPendingWorklogs.map { it.issueId }.distinct()
+        issuesWithNewUpdates.forEach {
+            refreshWorklogsFor(it)
+        }
+
         updatedWorklogs
     }
 
@@ -323,6 +340,51 @@ class JiraRepositoryImpl(
             from = from,
             to = to,
             summary = summary
+        )
+        database.worklogDao().updateWork(newEntity)
+    }
+
+    override suspend fun incrementWorklogTime(
+        worklogId: Long,
+        amount: Long
+    ) {
+        val entity = database.worklogDao().findWorkById(worklogId)
+
+        var newInstant = entity.from.minusMillis(amount)
+        if(newInstant.isAfter(Instant.now())) {
+            newInstant = Instant.now().plusSeconds(1)
+        }
+
+        val newEntity = entity.copy(
+            from = newInstant
+        )
+        database.worklogDao().updateWork(newEntity)
+    }
+
+    override suspend fun decrementWorklogTime(
+        worklogId: Long,
+        amount: Long
+    ) {
+        val entity = database.worklogDao().findWorkById(worklogId)
+
+        var newInstant = entity.from.plusMillis(amount)
+        if(newInstant.isAfter(Instant.now())) {
+            newInstant = Instant.now().minusSeconds(1)
+        }
+
+        val newEntity = entity.copy(
+            from = newInstant
+        )
+        database.worklogDao().updateWork(newEntity)
+    }
+
+    override suspend fun moveWorklogIssue(
+        worklogId: Long,
+        issueId: IssueId
+    ) {
+        val entity = database.worklogDao().findWorkById(worklogId)
+        val newEntity = entity.copy(
+            issueId = issueId
         )
         database.worklogDao().updateWork(newEntity)
     }

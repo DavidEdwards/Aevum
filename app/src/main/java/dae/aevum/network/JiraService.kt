@@ -12,6 +12,7 @@ import retrofit2.http.GET
 import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 @Keep
 interface JiraService {
@@ -21,7 +22,10 @@ interface JiraService {
 
     @GET("issue/{issueId}/worklog")
     @Headers("Content-Type: application/json")
-    fun listWorklogsFor(@Path("issueId") issueId: String): Call<WorklogListRetro?>
+    fun listWorklogsFor(
+        @Path("issueId") issueId: String,
+        @Query("startedAfter") startedAfter: Long
+    ): Call<WorklogListRetro?>
 
     @POST("issue/{issueId}/worklog")
     @Headers("Content-Type: application/json")
@@ -29,4 +33,8 @@ interface JiraService {
         @Path("issueId") issueId: String,
         @Body body: WorklogAddRetro
     ): Call<ResponseBody>
+
+    companion object {
+        const val ONE_WEEK_IN_MILLIS = 604800000L
+    }
 }

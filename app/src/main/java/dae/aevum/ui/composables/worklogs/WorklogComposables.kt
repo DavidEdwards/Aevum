@@ -19,6 +19,9 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Done
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,6 +62,9 @@ fun WorklogCard(
     onUpdate: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
     stopLogging: (Long) -> Unit = {},
     deleteWorklog: (Long) -> Unit = {},
+    changeIssueId: (workId: Long) -> Unit = {},
+    incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
+    decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
 ) {
     var worklogTo by remember {
         mutableStateOf(worklogUiModel.to)
@@ -93,57 +99,169 @@ fun WorklogCard(
             contentColor = if (worklogUiModel.active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Column(
+        Column {
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
+                    .fillMaxWidth()
+                    .padding(16.dp)
             ) {
-                TimeLabel(from = worklogUiModel.from, to = worklogTo)
-                Spacer(modifier = Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    TimeLabel(from = worklogUiModel.from, to = worklogTo)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (worklogUiModel.active) {
+                        Text(
+                            text = stringResource(
+                                R.string.logging_to_x,
+                                worklogUiModel.issueId.value
+                            )
+                        )
+                    } else {
+                        Text(text = worklogUiModel.author)
+                        Text(text = worklogUiModel.comment)
+                    }
+                }
+
                 if (worklogUiModel.active) {
-                    Text(text = stringResource(R.string.logging_to_x, worklogUiModel.issueId.value))
-                } else {
-                    Text(text = worklogUiModel.author)
-                    Text(text = worklogUiModel.comment)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .align(Alignment.CenterVertically)
+                    ) {
+                        CircleButton(
+                            active = true,
+                            icon = Icons.Outlined.Done,
+                            iconContentDescription = stringResource(R.string.stop_logging),
+                            activeColor = MaterialTheme.colorScheme.onPrimary
+                        ) {
+                            stopLogging(worklogUiModel.workId)
+                        }
+                    }
+                } else if (worklogUiModel.pending) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .align(Alignment.CenterVertically)
+                    ) {
+                        CircleButton(
+                            active = false,
+                            icon = Icons.Outlined.Clear,
+                            iconContentDescription = stringResource(R.string.delete_pending_worklog)
+                        ) {
+                            deleteWorklog(worklogUiModel.workId)
+                        }
+                    }
                 }
             }
 
-            if (worklogUiModel.active) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .align(Alignment.CenterVertically)
-                ) {
-                    CircleButton(
-                        active = false,
-                        icon = Icons.Outlined.Done,
-                        iconContentDescription = stringResource(R.string.stop_logging),
-                        inactiveColor = MaterialTheme.colorScheme.onPrimary
-                    ) {
-                        stopLogging(worklogUiModel.workId)
-                    }
-                }
-            } else if (worklogUiModel.pending) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .align(Alignment.CenterVertically)
-                ) {
-                    CircleButton(
-                        active = false,
-                        icon = Icons.Outlined.Clear,
-                        iconContentDescription = stringResource(R.string.delete_pending_worklog)
-                    ) {
-                        deleteWorklog(worklogUiModel.workId)
-                    }
-                }
-            }
+            WorklogCardControls(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                worklogUiModel = worklogUiModel,
+                active = worklogUiModel.active,
+                changeIssueId = changeIssueId,
+                incrementWorklogTime = incrementWorklogTime,
+                decrementWorklogTime = decrementWorklogTime
+            )
         }
+    }
+}
+
+@Composable
+private fun WorklogCardControls(
+    @PreviewParameter(SampleWorklogUiModelProvider::class, 1) worklogUiModel: WorklogUiModel,
+    modifier: Modifier = Modifier,
+    active: Boolean,
+    changeIssueId: (workId: Long) -> Unit,
+    incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
+    decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
+) {
+    val visible = worklogUiModel.active || worklogUiModel.pending
+    if (visible) {
+        Row(
+            modifier = modifier
+        ) {
+            ChangeIssueButton(
+                worklogUiModel = worklogUiModel,
+                modifier = Modifier,
+                active = active,
+                changeIssueId = changeIssueId
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            IncrementWorklogTimeButton(
+                worklogUiModel = worklogUiModel,
+                modifier = Modifier,
+                active = active,
+                incrementWorklogTime = incrementWorklogTime
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            DecrementWorklogTimeButton(
+                worklogUiModel = worklogUiModel,
+                modifier = Modifier,
+                active = active,
+                decrementWorklogTime = decrementWorklogTime
+            )
+        }
+    }
+}
+
+@Composable
+fun ChangeIssueButton(
+    @PreviewParameter(SampleWorklogUiModelProvider::class, 1) worklogUiModel: WorklogUiModel,
+    modifier: Modifier = Modifier,
+    active: Boolean,
+    changeIssueId: (workId: Long) -> Unit = {},
+) {
+    CircleButton(
+        modifier = modifier,
+        active = active,
+        icon = Icons.Outlined.Edit,
+        iconContentDescription = stringResource(R.string.change_issue),
+        activeColor = MaterialTheme.colorScheme.onPrimary
+    ) {
+        changeIssueId(worklogUiModel.workId)
+    }
+}
+
+@Composable
+fun IncrementWorklogTimeButton(
+    @PreviewParameter(SampleWorklogUiModelProvider::class, 1) worklogUiModel: WorklogUiModel,
+    modifier: Modifier = Modifier,
+    active: Boolean,
+    amount: Long = 15 * 60 * 1000L,
+    incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
+) {
+    CircleButton(
+        modifier = modifier,
+        active = active,
+        icon = Icons.Outlined.KeyboardArrowUp,
+        iconContentDescription = stringResource(R.string.increment_worklog_time),
+        activeColor = MaterialTheme.colorScheme.onPrimary
+    ) {
+        incrementWorklogTime(worklogUiModel.workId, amount)
+    }
+}
+
+@Composable
+fun DecrementWorklogTimeButton(
+    @PreviewParameter(SampleWorklogUiModelProvider::class, 1) worklogUiModel: WorklogUiModel,
+    modifier: Modifier = Modifier,
+    active: Boolean,
+    amount: Long = 15 * 60 * 1000L,
+    decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
+) {
+    CircleButton(
+        modifier = modifier,
+        active = active,
+        icon = Icons.Outlined.KeyboardArrowDown,
+        iconContentDescription = stringResource(R.string.decrement_worklog_time),
+        activeColor = MaterialTheme.colorScheme.onPrimary
+    ) {
+        decrementWorklogTime(worklogUiModel.workId, amount)
     }
 }
 

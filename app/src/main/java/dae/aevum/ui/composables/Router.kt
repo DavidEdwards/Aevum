@@ -49,6 +49,7 @@ import androidx.navigation.compose.rememberNavController
 import dae.aevum.R
 import dae.aevum.ui.composables.dialogs.AddUserDialog
 import dae.aevum.ui.composables.dialogs.CompletedWorklogDialog
+import dae.aevum.ui.composables.issues.IssueList
 import dae.aevum.ui.composables.issues.IssueListScreen
 import dae.aevum.ui.composables.issues.IssueScreen
 import dae.aevum.ui.composables.users.UserListScreen
@@ -72,6 +73,12 @@ sealed class Screen(
     object Issues : Screen("issues", R.string.issues, Icons.Outlined.Home)
     object IssueView : Screen("issueView/{issueId}", R.string.issue_view, Icons.Outlined.Search)
     object Worklogs : Screen("worklogs", R.string.pending, Icons.Outlined.List)
+    object WorklogsChangeId : Screen(
+        "worklogChangeIssue/{worklogId}",
+        R.string.change_issue_of_worklog,
+        Icons.Outlined.Edit
+    )
+
     object WorklogEditor :
         Screen("worklogEditor/{worklogId}", R.string.worklog_editor, Icons.Outlined.Edit)
 
@@ -101,6 +108,7 @@ val screens = listOf(
     Screen.Issues,
     Screen.IssueView,
     Screen.Worklogs,
+    Screen.WorklogsChangeId,
     Screen.WorklogEditor,
     Screen.WorklogNewDialog,
     Screen.UserNewDialog,
@@ -312,7 +320,18 @@ private fun AppNavHost(
             .padding(innerPadding),
         color = MaterialTheme.colorScheme.background
     ) {
-        NavHost(navController = navController, startDestination = startDestination) {
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+//            enterTransition = {
+//                // you can change whatever you want transition
+//                EnterTransition.None
+//            },
+//            exitTransition = {
+//                // you can change whatever you want transition
+//                ExitTransition.None
+//            }
+        ) {
             composable(Screen.Users.route) {
                 UserListScreen(
                     selectUser = { id ->
@@ -348,6 +367,15 @@ private fun AppNavHost(
                     },
                     deleteWorklog = { worklogId ->
                         viewModel.deleteLog(worklogId = worklogId)
+                    },
+                    changeIssueId = { worklogId ->
+                        navController.navigate("worklogChangeIssue/${worklogId}")
+                    },
+                    incrementWorklogTime = { workId, amount ->
+                        viewModel.incrementWorklogTime(workId, amount)
+                    },
+                    decrementWorklogTime = { workId, amount ->
+                        viewModel.decrementWorklogTime(workId, amount)
                     }
                 )
             }
@@ -365,8 +393,30 @@ private fun AppNavHost(
                     },
                     deleteWorklog = { worklogId ->
                         viewModel.deleteLog(worklogId = worklogId)
+                    },
+                    changeIssueId = { worklogId ->
+                        navController.navigate("worklogChangeIssue/${worklogId}")
+                    },
+                    incrementWorklogTime = { workId, amount ->
+                        viewModel.incrementWorklogTime(workId, amount)
+                    },
+                    decrementWorklogTime = { workId, amount ->
+                        viewModel.decrementWorklogTime(workId, amount)
                     }
                 )
+            }
+            composable(Screen.WorklogsChangeId.route) { backStackEntry ->
+                val viewModel: WorklogViewModel = hiltViewModel()
+                val worklogId = backStackEntry.arguments?.getString("worklogId")?.toLong()
+
+                if (worklogId != null) {
+                    IssueList(
+                        onIssueSelected = { issueId ->
+                            viewModel.moveWorklogIssue(worklogId, issueId)
+                            navController.popBackStack()
+                        }
+                    )
+                }
             }
             composable(Screen.WorklogEditor.route) { backStackEntry ->
                 val viewModel: WorklogViewModel = hiltViewModel()

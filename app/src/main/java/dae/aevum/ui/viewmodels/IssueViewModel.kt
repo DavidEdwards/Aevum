@@ -107,6 +107,18 @@ class IssueViewModel @Inject constructor(
         }
     }
 
+    fun incrementWorklogTime(worklogId: Long, amount: Long) {
+        viewModelScope.launch {
+            repository.incrementWorklogTime(worklogId, amount)
+        }
+    }
+
+    fun decrementWorklogTime(worklogId: Long, amount: Long) {
+        viewModelScope.launch {
+            repository.decrementWorklogTime(worklogId, amount)
+        }
+    }
+
     fun toggleIssuePin(issueId: IssueId) {
         viewModelScope.launch {
             repository.toggleIssuePin(issueId)

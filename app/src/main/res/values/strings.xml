@@ -4,6 +4,7 @@
     <string name="no_visible_issues">There are no issues currently visible.</string>
     <string name="start_logging">Start logging</string>
     <string name="stop_logging">Stop logging</string>
+    <string name="change_issue">Change issue</string>
     <string name="stop_logging_to">Stop logging to %1$s</string>
     <string name="worklog_summary">Worklog Summary</string>
     <string name="worklog_summary_details">leave a log detailing what you did during this time.</string>
@@ -47,4 +48,7 @@
     <string name="time_new_duration">New duration:\n%1$s</string>
     <string name="splitting_from_to_issue">Splitting from %1$s to issue %2$s</string>
     <string name="choose_time">Please choose where to split the time:</string>
+    <string name="change_issue_of_worklog">Change issue of worklog</string>
+    <string name="increment_worklog_time">Increment worklog time</string>
+    <string name="decrement_worklog_time">Decrement worklog time</string>
 </resources>

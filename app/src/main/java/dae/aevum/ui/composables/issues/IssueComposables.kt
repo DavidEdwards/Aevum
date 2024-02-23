@@ -109,6 +109,9 @@ fun IssueDetails(
     stopLogging: (Long) -> Unit = {},
     onUpdate: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
     deleteWorklog: (Long) -> Unit = {},
+    changeIssueId: (Long) -> Unit = {},
+    incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
+    decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
 ) {
     LaunchedEffect(Unit) {
         Timber.v("Reload issue screen")
@@ -146,7 +149,10 @@ fun IssueDetails(
                     worklogUiModel = worklogUiModel,
                     onUpdate = onUpdate,
                     stopLogging = stopLogging,
-                    deleteWorklog = deleteWorklog
+                    deleteWorklog = deleteWorklog,
+                    changeIssueId = changeIssueId,
+                    incrementWorklogTime = incrementWorklogTime,
+                    decrementWorklogTime = decrementWorklogTime
                 )
             }
         }

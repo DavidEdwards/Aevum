@@ -60,6 +60,24 @@ class WorklogViewModel @Inject constructor(
         }
     }
 
+    fun incrementWorklogTime(worklogId: Long, amount: Long) {
+        viewModelScope.launch {
+            jiraRepository.incrementWorklogTime(worklogId, amount)
+        }
+    }
+
+    fun decrementWorklogTime(worklogId: Long, amount: Long) {
+        viewModelScope.launch {
+            jiraRepository.decrementWorklogTime(worklogId, amount)
+        }
+    }
+
+    fun moveWorklogIssue(worklogId: Long, issueId: IssueId) {
+        viewModelScope.launch {
+            jiraRepository.moveWorklogIssue(worklogId, issueId)
+        }
+    }
+
     fun splitWorklog(
         worklogId: Long,
         issueId: IssueId,

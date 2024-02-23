@@ -121,6 +121,9 @@ fun IssueScreen(
     stopLogging: (Long) -> Unit = {},
     onUpdate: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
     deleteWorklog: (Long) -> Unit = {},
+    changeIssueId: (Long) -> Unit = {},
+    incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
+    decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
 ) {
     viewModel.setViewedIssueId(issueId)
     val model by viewModel.issueBeingViewed.collectAsState(initial = null)
@@ -140,7 +143,10 @@ fun IssueScreen(
             },
             stopLogging = stopLogging,
             onUpdate = onUpdate,
-            deleteWorklog = deleteWorklog
+            deleteWorklog = deleteWorklog,
+            changeIssueId = changeIssueId,
+            incrementWorklogTime = incrementWorklogTime,
+            decrementWorklogTime = decrementWorklogTime
         )
     }
 }

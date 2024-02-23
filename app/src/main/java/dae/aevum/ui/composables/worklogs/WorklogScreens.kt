@@ -47,6 +47,9 @@ fun WorklogListScreen(
     onUpdate: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
     stopLogging: (Long) -> Unit = {},
     deleteWorklog: (Long) -> Unit = {},
+    changeIssueId: (Long) -> Unit = {},
+    incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
+    decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
 ) {
     val worklogs by viewModel.pendingWorklogs.collectAsState(initial = emptyList())
 
@@ -74,7 +77,10 @@ fun WorklogListScreen(
                     },
                     onUpdate = onUpdate,
                     stopLogging = stopLogging,
-                    deleteWorklog = deleteWorklog
+                    deleteWorklog = deleteWorklog,
+                    changeIssueId = changeIssueId,
+                    incrementWorklogTime = incrementWorklogTime,
+                    decrementWorklogTime = decrementWorklogTime
                 )
             }
         }
