@@ -12,29 +12,34 @@ class AuthInterceptor(
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val activeUser = runBlocking {
-            userRepository.getActiveUser()
-        } ?: return run {
-            Response.Builder()
-                .code(HttpURLConnection.HTTP_UNAUTHORIZED)
-                .message("User required")
-                .build()
-        }
+        val newRequest = try {
+            val activeUser = runBlocking {
+                userRepository.getActiveUser()
+            } ?: return run {
+                Response.Builder()
+                    .code(HttpURLConnection.HTTP_UNAUTHORIZED)
+                    .message("User required")
+                    .build()
+            }
 
-        val token = Base64.encodeToString(
-            "${activeUser.user}:${activeUser.token}".toByteArray(),
-            Base64.NO_WRAP
-        )
-        val url = chain.request().url.toString()
-            .replace("https://baseurl", activeUser.instanceUrl.removeSuffix("/"))
-
-        val newRequest = chain.request().newBuilder()
-            .addHeader(
-                "Authorization",
-                "Basic $token"
+            val token = Base64.encodeToString(
+                "${activeUser.user}:${activeUser.token}".toByteArray(),
+                Base64.NO_WRAP
             )
-            .url(url)
-            .build()
+            val url = chain.request().url.toString()
+                .replace("https://baseurl", activeUser.instanceUrl.removeSuffix("/"))
+
+            chain.request().newBuilder()
+                .addHeader(
+                    "Authorization",
+                    "Basic $token"
+                )
+                .url(url)
+                .build()
+        } catch (e: IllegalStateException) {
+            e.printStackTrace()
+            chain.request()
+        }
 
         return chain.proceed(newRequest)
     }

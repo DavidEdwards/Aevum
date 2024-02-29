@@ -12,12 +12,12 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface UserDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addUser(entity: UserEntity)
+    suspend fun addUser(entity: UserEntity): Long
 
     @Query("SELECT * FROM users WHERE active = 1 LIMIT 1")
     suspend fun getActiveUser(): UserEntity?
 
-    @Query("SELECT * FROM users WHERE active = 1 LIMIT 1")
+    @Query("SELECT * FROM users WHERE active = 1 AND jiraUserAccountId != '' LIMIT 1")
     fun flowActiveUser(): Flow<UserEntity?>
 
     @Query("SELECT * FROM users ORDER BY active DESC, user ASC")

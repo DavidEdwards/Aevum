@@ -3,6 +3,7 @@ package dae.aevum.network
 import androidx.annotation.Keep
 import dae.aevum.network.models.SearchRequestRetro
 import dae.aevum.network.models.SearchRetro
+import dae.aevum.network.models.UserResponseRetro
 import dae.aevum.network.models.WorklogAddRetro
 import dae.aevum.network.models.WorklogListRetro
 import okhttp3.ResponseBody
@@ -16,6 +17,10 @@ import retrofit2.http.Query
 
 @Keep
 interface JiraService {
+    @GET("user/picker")
+    @Headers("Content-Type: application/json")
+    fun getUser(@Query("query") query: String): Call<UserResponseRetro?>
+
     @POST("search")
     @Headers("Content-Type: application/json")
     fun searchIssues(@Body body: SearchRequestRetro): Call<SearchRetro?>

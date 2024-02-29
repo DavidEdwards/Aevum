@@ -101,7 +101,8 @@ fun AddUserDialog(
                     },
                     label = {
                         Text(text = stringResource(R.string.user))
-                    }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                 )
 
                 OutlinedTextField(
@@ -114,7 +115,8 @@ fun AddUserDialog(
                     },
                     label = {
                         Text(text = stringResource(R.string.token))
-                    }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
                 val context = LocalContext.current

@@ -13,6 +13,7 @@ data class WorklogEntity(
     val workId: Long,
     val issueId: IssueId,
     val userId: Int,
+    val jiraUserAccountId: String,
     val from: Instant,
     val to: Instant,
     val author: String,

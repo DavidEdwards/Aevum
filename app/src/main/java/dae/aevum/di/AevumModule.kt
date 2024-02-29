@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import dae.aevum.App
 import dae.aevum.database.AppDatabase
+import dae.aevum.database.migrations.Migration_9_10
 import dae.aevum.domain.repositories.AudioRepository
 import dae.aevum.domain.repositories.AudioRepositoryImpl
 import dae.aevum.domain.repositories.JiraRepository
@@ -36,7 +37,9 @@ class AevumModule {
             applicationContext,
             AppDatabase::class.java,
             "database"
-        ).fallbackToDestructiveMigration()
+        )
+            .fallbackToDestructiveMigration()
+            .addMigrations(Migration_9_10())
             .build()
     }
 

@@ -44,6 +44,11 @@ class WorklogViewModel @Inject constructor(
             list.map { WorklogUiModel.fromEntity(entity = it) }
         }
 
+    val worklogsTodayFromMe = jiraRepository.getWorklogsTodayFromMe()
+        .map { list ->
+            list.map { WorklogUiModel.fromEntity(entity = it) }
+        }
+
     fun setViewedWorklogId(id: Long?) {
         savedStateHandle[SAVED_VIEWED_WORKLOG_ID] = id
     }

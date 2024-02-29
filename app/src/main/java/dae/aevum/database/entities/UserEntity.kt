@@ -11,6 +11,7 @@ data class UserEntity(
     val id: Int,
     val instanceUrl: String,
     val user: String,
+    val jiraUserAccountId: String,
     val token: String,
     val active: Boolean
 )

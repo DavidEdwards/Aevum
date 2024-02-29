@@ -19,8 +19,9 @@ interface UserRepository {
     suspend fun addUser(
         instanceUrl: String,
         user: String,
+        jiraAccountId: String,
         token: String
-    )
+    ): Int
 
     suspend fun testUser(
         instanceUrl: String,
@@ -37,6 +38,7 @@ interface UserRepository {
 class UserRepositoryImpl(
     private val database: AppDatabase
 ) : UserRepository {
+
     override suspend fun getActiveUser(): UserEntity? {
         return database.userDao().getActiveUser()
     }
@@ -96,16 +98,18 @@ class UserRepositoryImpl(
     override suspend fun addUser(
         instanceUrl: String,
         user: String,
+        jiraAccountId: String,
         token: String
-    ) {
+    ): Int {
         val entity = UserEntity(
             id = 0,
             instanceUrl = instanceUrl,
             user = user,
+            jiraUserAccountId = jiraAccountId,
             token = token,
             active = true
         )
-        database.userDao().addUser(entity)
+        return database.userDao().addUser(entity).toInt()
     }
 
     override suspend fun removeUser(userId: Int) {

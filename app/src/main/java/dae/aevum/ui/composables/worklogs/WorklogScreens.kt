@@ -92,7 +92,7 @@ fun AlreadyLoggedTodayList(
     modifier: Modifier = Modifier,
     viewModel: WorklogViewModel = hiltViewModel()
 ) {
-    val worklogsToday by viewModel.worklogsToday.collectAsState(initial = emptyList())
+    val worklogsToday by viewModel.worklogsTodayFromMe.collectAsState(initial = emptyList())
 
     if (worklogsToday.isNotEmpty()) {
         Column(

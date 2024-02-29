@@ -6,17 +6,20 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.ui.models.UserUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
 class UserViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val jiraRepository: JiraRepository
 ) : ViewModel() {
 
     var instanceUrl: String = savedStateHandle[SAVED_INSTANCE_URL] ?: ""
@@ -47,7 +50,7 @@ class UserViewModel @Inject constructor(
 
     fun addUser(
         instanceUrl: String,
-        user: String,
+        userName: String,
         token: String, after: (Boolean) -> Unit = {}
     ) {
         viewModelScope.launch {
@@ -57,11 +60,41 @@ class UserViewModel @Inject constructor(
             } else {
                 "https://$instanceUrl"
             }
-            val tested = userRepository.testUser(url, user, token)
-            if (tested) {
+
+            val tested = try {
                 userRepository.unselectAllUsers()
-                userRepository.addUser(url, user, token)
+                val id = userRepository.addUser(
+                    instanceUrl = url,
+                    user = userName,
+                    jiraAccountId = "",
+                    token = token
+                )
+
+                val jiraAccountId = jiraRepository.getJiraAccountId(userName)
+                Timber.v("Jira account id: $jiraAccountId")
+                val correctPermissions = userRepository.testUser(url, userName, token)
+                Timber.v("Correct permissions: $correctPermissions")
+
+                userRepository.removeUser(id)
+
+                (correctPermissions && jiraAccountId.isNotBlank()).let { correctInformation ->
+                    if (correctInformation) {
+                        Timber.v("Adding user")
+                        userRepository.unselectAllUsers()
+                        userRepository.addUser(
+                            instanceUrl = url,
+                            user = userName,
+                            jiraAccountId = jiraAccountId,
+                            token = token
+                        )
+                    }
+                    correctInformation
+                }
+            } catch (e: IllegalArgumentException) {
+                Timber.e(e)
+                false
             }
+
             after(tested)
             loading = false
         }

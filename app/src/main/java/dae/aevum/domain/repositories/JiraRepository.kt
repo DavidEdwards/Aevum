@@ -33,6 +33,7 @@ import javax.inject.Singleton
 import kotlin.math.max
 
 interface JiraRepository {
+    suspend fun getJiraAccountId(email: String): String
     suspend fun getIssues(): List<IssueEntity>
     fun flowIssues(): Flow<List<IssueEntity>>
     suspend fun refreshIssuesfromJira()
@@ -47,6 +48,7 @@ interface JiraRepository {
     suspend fun deleteWorklog(worklogId: Long)
     fun getPendingWorklogs(): Flow<List<WorklogEntity>>
     fun getWorklogsToday(): Flow<List<WorklogEntity>>
+    fun getWorklogsTodayFromMe(): Flow<List<WorklogEntity>>
     suspend fun postPendingWorklogs(): List<WorklogEntity>
     suspend fun updateWorklog(worklogId: Long, from: Instant, to: Instant, summary: String)
     suspend fun incrementWorklogTime(worklogId: Long, amount: Long)
@@ -69,6 +71,14 @@ class JiraRepositoryImpl(
     private val userRepository: UserRepository,
     private val database: AppDatabase
 ) : JiraRepository {
+    override suspend fun getJiraAccountId(email: String): String {
+        val body = withContext(Dispatchers.IO) {
+            jira.getUser(email).execute().body()
+        } ?: throw IllegalArgumentException("Could not get Jira account id for $email")
+
+        return body.users.first().accountId
+    }
+
     override suspend fun getIssues(): List<IssueEntity> {
         val user = userRepository.getActiveUser()
             ?: return emptyList()
@@ -173,6 +183,7 @@ class JiraRepositoryImpl(
                             workId = it.id.toLong(),
                             issueId = issueId,
                             userId = user.id,
+                            jiraUserAccountId = it.author.accountId,
                             from = parsedTime,
                             to = parsedTime.plusSeconds(it.timeSpentSeconds),
                             author = it.author.displayName,
@@ -225,6 +236,7 @@ class JiraRepositoryImpl(
                 workId = 0L,
                 issueId = issueId,
                 userId = user.id,
+                jiraUserAccountId = user.jiraUserAccountId,
                 from = now,
                 to = now,
                 author = "Pending",
@@ -277,6 +289,22 @@ class JiraRepositoryImpl(
                 userId = user.id,
                 dayStart = dayStart,
                 dayEnd = dayEnd
+            )
+        }
+    }
+
+    override fun getWorklogsTodayFromMe(): Flow<List<WorklogEntity>> {
+        return userRepository.flowActiveUser().flatMapLatest { user ->
+            user ?: return@flatMapLatest emptyFlow()
+
+            val dayStart = LocalDate.now().atStartOfDay().toInstant(ZoneOffset.UTC)
+            val dayEnd = LocalDate.now().atStartOfDay().plusHours(24).toInstant(ZoneOffset.UTC)
+
+            return@flatMapLatest database.worklogDao().getWorklogsTodayFromMe(
+                userId = user.id,
+                dayStart = dayStart,
+                dayEnd = dayEnd,
+                jiraUserAccountId = user.jiraUserAccountId
             )
         }
     }
@@ -351,7 +379,7 @@ class JiraRepositoryImpl(
         val entity = database.worklogDao().findWorkById(worklogId)
 
         var newInstant = entity.from.minusMillis(amount)
-        if(newInstant.isAfter(Instant.now())) {
+        if (newInstant.isAfter(Instant.now())) {
             newInstant = Instant.now().plusSeconds(1)
         }
 
@@ -368,7 +396,7 @@ class JiraRepositoryImpl(
         val entity = database.worklogDao().findWorkById(worklogId)
 
         var newInstant = entity.from.plusMillis(amount)
-        if(newInstant.isAfter(Instant.now())) {
+        if (newInstant.isAfter(Instant.now())) {
             newInstant = Instant.now().minusSeconds(1)
         }
 

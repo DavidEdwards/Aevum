@@ -51,4 +51,12 @@ interface WorklogDao {
         dayStart: Instant,
         dayEnd: Instant
     ): Flow<List<WorklogEntity>>
+
+    @Query("SELECT * FROM worklogs WHERE userId = :userId AND jiraUserAccountId = :jiraUserAccountId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC")
+    fun getWorklogsTodayFromMe(
+        userId: Int,
+        dayStart: Instant,
+        dayEnd: Instant,
+        jiraUserAccountId: String
+    ): Flow<List<WorklogEntity>>
 }
