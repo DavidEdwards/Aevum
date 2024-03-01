@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import dae.aevum.database.entities.WorklogEntity
+import dae.aevum.database.entities.composites.WorklogIssue
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
@@ -42,8 +43,8 @@ interface WorklogDao {
     @Delete
     suspend fun deleteWork(entity: WorklogEntity)
 
-    @Query("SELECT * FROM worklogs WHERE pending = 1 ORDER BY `from` DESC")
-    fun flowPendingWorklogs(): Flow<List<WorklogEntity>>
+    @Query("SELECT * FROM worklogs WHERE userId = :userId AND pending = 1 ORDER BY `from` DESC")
+    fun flowPendingWorklogs(userId: Int): Flow<List<WorklogEntity>>
 
     @Query("SELECT * FROM worklogs WHERE userId = :userId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC")
     fun flowWorklogsToday(
@@ -59,4 +60,16 @@ interface WorklogDao {
         dayEnd: Instant,
         jiraUserAccountId: String
     ): Flow<List<WorklogEntity>>
+
+
+    @Query("SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues WHERE worklogs.issueId = issues.id")
+    fun getWorklogsAndIssues(): Flow<List<WorklogIssue>>
+
+    @Query("SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues WHERE worklogs.issueId = issues.id AND worklogs.userId = :userId AND worklogs.jiraUserAccountId = :jiraUserAccountId AND ((worklogs.`from` BETWEEN :dayStart AND :dayEnd) OR (worklogs.`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY worklogs.`from` DESC")
+    fun getWorklogIssuesTodayFromMe(
+        userId: Int,
+        dayStart: Instant,
+        dayEnd: Instant,
+        jiraUserAccountId: String
+    ): Flow<List<WorklogIssue>>
 }

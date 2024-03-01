@@ -78,5 +78,7 @@
 -dontwarn org.openjsse.javax.net.ssl.SSLParameters
 -dontwarn org.openjsse.javax.net.ssl.SSLSocket
 -dontwarn org.openjsse.net.ssl.OpenJSSE
+-dontwarn javax.lang.model.element.AnnotationValue
+-dontwarn javax.lang.model.util.AbstractAnnotationValueVisitor8
 
 # endregion

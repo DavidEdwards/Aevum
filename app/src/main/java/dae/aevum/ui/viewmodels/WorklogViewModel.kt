@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dae.aevum.domain.repositories.AudioRepository
 import dae.aevum.domain.repositories.JiraRepository
+import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.models.WorklogUiModel
 import dae.aevum.utils.IssueId
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,14 +40,9 @@ class WorklogViewModel @Inject constructor(
             list.map { WorklogUiModel.fromEntity(entity = it) }
         }
 
-    val worklogsToday = jiraRepository.getWorklogsToday()
-        .map { list ->
-            list.map { WorklogUiModel.fromEntity(entity = it) }
-        }
-
     val worklogsTodayFromMe = jiraRepository.getWorklogsTodayFromMe()
         .map { list ->
-            list.map { WorklogUiModel.fromEntity(entity = it) }
+            list.map { WorklogIssueUiModel.fromEntity(entity = it) }
         }
 
     fun setViewedWorklogId(id: Long?) {

@@ -110,6 +110,12 @@ fun AlreadyLoggedTodayList(
                     text = "${model.issueId.value}: $duration",
                     style = MaterialTheme.typography.bodySmall
                 )
+                Text(
+                    text = "  ${model.issueTitle}",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    color = MaterialTheme.colorScheme.secondary
+                )
             }
 
             val totalDuration =

@@ -6,6 +6,7 @@ import dae.aevum.database.AppDatabase
 import dae.aevum.database.entities.ActiveIssueEntity
 import dae.aevum.database.entities.IssueEntity
 import dae.aevum.database.entities.WorklogEntity
+import dae.aevum.database.entities.composites.WorklogIssue
 import dae.aevum.network.JiraService
 import dae.aevum.network.models.CommentNodeRetro
 import dae.aevum.network.models.SearchRequestRetro
@@ -48,7 +49,7 @@ interface JiraRepository {
     suspend fun deleteWorklog(worklogId: Long)
     fun getPendingWorklogs(): Flow<List<WorklogEntity>>
     fun getWorklogsToday(): Flow<List<WorklogEntity>>
-    fun getWorklogsTodayFromMe(): Flow<List<WorklogEntity>>
+    fun getWorklogsTodayFromMe(): Flow<List<WorklogIssue>>
     suspend fun postPendingWorklogs(): List<WorklogEntity>
     suspend fun updateWorklog(worklogId: Long, from: Instant, to: Instant, summary: String)
     suspend fun incrementWorklogTime(worklogId: Long, amount: Long)
@@ -275,7 +276,11 @@ class JiraRepositoryImpl(
     }
 
     override fun getPendingWorklogs(): Flow<List<WorklogEntity>> {
-        return database.worklogDao().flowPendingWorklogs()
+        return userRepository.flowActiveUser().flatMapLatest { user ->
+            user ?: return@flatMapLatest emptyFlow()
+
+            return@flatMapLatest database.worklogDao().flowPendingWorklogs(user.id)
+        }
     }
 
     override fun getWorklogsToday(): Flow<List<WorklogEntity>> {
@@ -293,14 +298,14 @@ class JiraRepositoryImpl(
         }
     }
 
-    override fun getWorklogsTodayFromMe(): Flow<List<WorklogEntity>> {
+    override fun getWorklogsTodayFromMe(): Flow<List<WorklogIssue>> {
         return userRepository.flowActiveUser().flatMapLatest { user ->
             user ?: return@flatMapLatest emptyFlow()
 
             val dayStart = LocalDate.now().atStartOfDay().toInstant(ZoneOffset.UTC)
             val dayEnd = LocalDate.now().atStartOfDay().plusHours(24).toInstant(ZoneOffset.UTC)
 
-            return@flatMapLatest database.worklogDao().getWorklogsTodayFromMe(
+            return@flatMapLatest database.worklogDao().getWorklogIssuesTodayFromMe(
                 userId = user.id,
                 dayStart = dayStart,
                 dayEnd = dayEnd,
