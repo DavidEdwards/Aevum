@@ -33,7 +33,7 @@ class WorklogViewModel @Inject constructor(
                 jiraRepository.flowWorklog(worklogId)
             }
         }
-        .map { entity -> entity?.let { WorklogUiModel.fromEntity(entity = it) } }
+        .map { entity -> entity?.let { WorklogIssueUiModel.fromEntity(entity = it) } }
 
     val pendingWorklogs = jiraRepository.getPendingWorklogs()
         .map { list ->

@@ -31,6 +31,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import javax.inject.Singleton
+import kotlin.math.ceil
 import kotlin.math.max
 
 interface JiraRepository {
@@ -40,7 +41,7 @@ interface JiraRepository {
     suspend fun refreshIssuesfromJira()
     suspend fun refreshWorklogsFor(issueId: IssueId)
     fun flowIssue(issueId: IssueId): Flow<IssueEntity>
-    fun flowWorklog(worklogId: Long): Flow<WorklogEntity?>
+    fun flowWorklog(worklogId: Long): Flow<WorklogIssue?>
     fun worklogsForIssue(issueId: IssueId): Flow<List<WorklogEntity>>
 
     suspend fun startLogFor(issueId: IssueId)
@@ -214,7 +215,7 @@ class JiraRepositoryImpl(
         }
     }
 
-    override fun flowWorklog(worklogId: Long): Flow<WorklogEntity?> {
+    override fun flowWorklog(worklogId: Long): Flow<WorklogIssue?> {
         return userRepository.flowActiveUser().flatMapLatest { user ->
             if (user == null) return@flatMapLatest emptyFlow()
             database.issueDao().flowWorklogById(user.id, worklogId)
@@ -323,7 +324,7 @@ class JiraRepositoryImpl(
         val updatedWorklogs = worklogs.map { worklog ->
             async(Dispatchers.IO) {
                 val secondsDuration =
-                    (Duration.between(worklog.from, worklog.to).toMillis() / 1000).toInt()
+                    ceil(Duration.between(worklog.from, worklog.to).toMillis() / 1000.0 / 60.0).toInt() * 60
 
                 yield()
                 val response = jira.addWorklog(

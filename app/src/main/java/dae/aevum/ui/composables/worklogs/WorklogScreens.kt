@@ -38,6 +38,7 @@ import dae.aevum.utils.human
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import kotlin.math.max
 
 @Composable
 fun WorklogListScreen(
@@ -48,6 +49,7 @@ fun WorklogListScreen(
     stopLogging: (Long) -> Unit = {},
     deleteWorklog: (Long) -> Unit = {},
     changeIssueId: (Long) -> Unit = {},
+    splitWorklog: (Long) -> Unit = {},
     incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
     decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
 ) {
@@ -79,6 +81,7 @@ fun WorklogListScreen(
                     stopLogging = stopLogging,
                     deleteWorklog = deleteWorklog,
                     changeIssueId = changeIssueId,
+                    splitWorklog = splitWorklog,
                     incrementWorklogTime = incrementWorklogTime,
                     decrementWorklogTime = decrementWorklogTime
                 )
@@ -204,7 +207,7 @@ fun WorklogSplitterTimeScreen(
     val end = model!!.to
 
     val duration = Duration.between(start, end)
-    val totalMinutes = duration.toMinutes()
+    val totalMinutes = max(duration.toMinutes(), 1L)
 
     var position: Float by remember {
         mutableFloatStateOf(totalMinutes.toFloat())

@@ -5,10 +5,12 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RewriteQueriesToDropUnusedColumns
+import androidx.room.Transaction
 import androidx.room.Update
 import dae.aevum.database.entities.ActiveIssueEntity
 import dae.aevum.database.entities.IssueEntity
-import dae.aevum.database.entities.WorklogEntity
+import dae.aevum.database.entities.composites.WorklogIssue
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -34,9 +36,11 @@ interface IssuesDao {
     @Query("SELECT * FROM issues WHERE id = :issueId AND userId = :userId")
     fun flowIssueById(userId: Int, issueId: String): Flow<IssueEntity>
 
-    @Query("SELECT * FROM worklogs WHERE workId = :worklogId AND userId = :userId")
-    fun flowWorklogById(userId: Int, worklogId: Long): Flow<WorklogEntity?>
+    @Query("SELECT worklogs.*, issues.title AS issueTitle FROM issues, worklogs WHERE issues.id = worklogs.issueId AND worklogs.workId = :worklogId AND issues.userId = :userId")
+    fun flowWorklogById(userId: Int, worklogId: Long): Flow<WorklogIssue?>
 
+    @RewriteQueriesToDropUnusedColumns
+    @Transaction
     @Query("SELECT * FROM issues, worklogs WHERE issues.id = worklogs.issueId AND worklogs.active = 1 AND issues.userId = :userId LIMIT 1")
     fun flowActiveIssue(userId: Int): Flow<ActiveIssueEntity?>
 

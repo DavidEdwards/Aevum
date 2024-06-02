@@ -85,7 +85,7 @@ sealed class Screen(
     object WorklogSplitIssueSelector :
         Screen(
             "worklog/split/issueSelector/{worklogId}",
-            R.string.issue_selector,
+            R.string.split_worklog,
             Icons.Outlined.Edit
         )
 
@@ -371,6 +371,9 @@ private fun AppNavHost(
                     changeIssueId = { worklogId ->
                         navController.navigate("worklogChangeIssue/${worklogId}")
                     },
+                    splitWorklog = { worklogId ->
+                        navController.navigate("worklog/split/issueSelector/$worklogId")
+                    },
                     incrementWorklogTime = { workId, amount ->
                         viewModel.incrementWorklogTime(workId, amount)
                     },
@@ -397,6 +400,9 @@ private fun AppNavHost(
                     changeIssueId = { worklogId ->
                         navController.navigate("worklogChangeIssue/${worklogId}")
                     },
+                    splitWorklog = { worklogId ->
+                        navController.navigate("worklog/split/issueSelector/$worklogId")
+                    },
                     incrementWorklogTime = { workId, amount ->
                         viewModel.incrementWorklogTime(workId, amount)
                     },
@@ -414,6 +420,7 @@ private fun AppNavHost(
                         onIssueSelected = { issueId ->
                             viewModel.moveWorklogIssue(worklogId, issueId)
                             navController.popBackStack()
+                            navController.navigate("issueView/${issueId.value}")
                         }
                     )
                 }

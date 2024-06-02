@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import dae.aevum.App
 import dae.aevum.R
 import dae.aevum.ui.composables.reusable.CircleButton
+import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.models.WorklogUiModel
 import dae.aevum.utils.SampleWorklogUiModelProvider
 import dae.aevum.utils.human
@@ -52,6 +54,7 @@ import kotlinx.coroutines.delay
 import timber.log.Timber
 import java.time.Duration
 import java.time.Instant
+import kotlin.math.max
 
 @Preview(widthDp = 320)
 @Composable
@@ -63,6 +66,7 @@ fun WorklogCard(
     stopLogging: (Long) -> Unit = {},
     deleteWorklog: (Long) -> Unit = {},
     changeIssueId: (workId: Long) -> Unit = {},
+    splitWorklog: (Long) -> Unit = {},
     incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
     decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
 ) {
@@ -164,6 +168,7 @@ fun WorklogCard(
                 worklogUiModel = worklogUiModel,
                 active = worklogUiModel.active,
                 changeIssueId = changeIssueId,
+                splitWorklog = splitWorklog,
                 incrementWorklogTime = incrementWorklogTime,
                 decrementWorklogTime = decrementWorklogTime
             )
@@ -177,11 +182,17 @@ private fun WorklogCardControls(
     modifier: Modifier = Modifier,
     active: Boolean,
     changeIssueId: (workId: Long) -> Unit,
+    splitWorklog: (Long) -> Unit = {},
     incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
     decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
 ) {
     val visible = worklogUiModel.active || worklogUiModel.pending
     if (visible) {
+        val start = worklogUiModel.from
+        val end = worklogUiModel.to
+        val duration = Duration.between(start, end)
+        val totalMinutes = max(duration.toMinutes(), 1L)
+
         Row(
             modifier = modifier
         ) {
@@ -205,6 +216,16 @@ private fun WorklogCardControls(
                 active = active,
                 decrementWorklogTime = decrementWorklogTime
             )
+
+            if(totalMinutes >= 5) {
+                Spacer(modifier = Modifier.width(8.dp))
+                SplitWorklogButton(
+                    worklogUiModel = worklogUiModel,
+                    modifier = Modifier,
+                    active = active,
+                    splitWorklog = splitWorklog
+                )
+            }
         }
     }
 }
@@ -266,6 +287,24 @@ fun DecrementWorklogTimeButton(
 }
 
 @Composable
+fun SplitWorklogButton(
+    @PreviewParameter(SampleWorklogUiModelProvider::class, 1) worklogUiModel: WorklogUiModel,
+    modifier: Modifier = Modifier,
+    active: Boolean,
+    splitWorklog: (Long) -> Unit = {}
+) {
+    CircleButton(
+        modifier = modifier,
+        active = active,
+        icon = Icons.Outlined.Code,
+        iconContentDescription = stringResource(R.string.split),
+        activeColor = MaterialTheme.colorScheme.onPrimary
+    ) {
+        splitWorklog(worklogUiModel.workId)
+    }
+}
+
+@Composable
 fun TimeLabel(
     modifier: Modifier = Modifier,
     from: Instant,
@@ -310,7 +349,7 @@ fun TimeLabel(
 @Composable
 fun WorklogDetails(
     modifier: Modifier = Modifier,
-    @PreviewParameter(SampleWorklogUiModelProvider::class, 1) model: WorklogUiModel,
+    @PreviewParameter(SampleWorklogUiModelProvider::class, 1) model: WorklogIssueUiModel,
     updateWorklog: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
     splitWorklog: (Long) -> Unit = {}
 ) {
@@ -351,6 +390,8 @@ fun WorklogDetails(
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = stringResource(R.string.issue_id_x, model.issueId.value))
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = model.issueTitle)
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = stringResource(R.string.author_x, model.author))
         Spacer(modifier = Modifier.height(8.dp))

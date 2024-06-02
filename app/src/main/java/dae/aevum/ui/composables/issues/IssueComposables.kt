@@ -110,6 +110,7 @@ fun IssueDetails(
     onUpdate: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
     deleteWorklog: (Long) -> Unit = {},
     changeIssueId: (Long) -> Unit = {},
+    splitWorklog: (Long) -> Unit = {},
     incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
     decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
 ) {
@@ -151,6 +152,7 @@ fun IssueDetails(
                     stopLogging = stopLogging,
                     deleteWorklog = deleteWorklog,
                     changeIssueId = changeIssueId,
+                    splitWorklog = splitWorklog,
                     incrementWorklogTime = incrementWorklogTime,
                     decrementWorklogTime = decrementWorklogTime
                 )
