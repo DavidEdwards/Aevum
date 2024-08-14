@@ -1,18 +1,31 @@
+@file:Suppress("UnstableApiUsage")
+
+rootProject.name = "Aevum"
+
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
 pluginManagement {
     repositories {
+        gradlePluginPortal()
+        mavenCentral()
         google()
         mavenCentral()
-        gradlePluginPortal()
+        includeBuild("build-logic")
     }
 }
+
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
         google()
         mavenCentral()
     }
 }
 
-rootProject.name = "Aevum"
 include(":app")
- 
+include(":db")
+include(":common")
+include(":ui")
+include(":domain")
+include(":network")
+

@@ -2,7 +2,6 @@ package dae.aevum.di
 
 import android.content.Context
 import androidx.room.Room
-import dae.aevum.App
 import dae.aevum.database.AppDatabase
 import dae.aevum.database.migrations.Migration_9_10
 import dae.aevum.domain.repositories.AudioRepository
@@ -12,7 +11,9 @@ import dae.aevum.domain.repositories.JiraRepositoryImpl
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.domain.repositories.UserRepositoryImpl
 import dae.aevum.network.AuthInterceptor
+import dae.aevum.network.Jira
 import dae.aevum.network.JiraService
+import dae.aevum.utils.Urls
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -48,7 +49,9 @@ class AevumModule {
     fun provideAuthInterceptor(
         userRepository: UserRepository
     ): AuthInterceptor {
-        return AuthInterceptor(userRepository)
+        return AuthInterceptor {
+            userRepository.getActiveUser()
+        }
     }
 
     @Provides
@@ -70,7 +73,7 @@ class AevumModule {
         okHttpClient: OkHttpClient
     ): JiraService {
         val retrofit = Retrofit.Builder()
-            .baseUrl(App.BASE_URL)
+            .baseUrl(Urls.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .client(okHttpClient)
             .build()
@@ -79,8 +82,16 @@ class AevumModule {
 
     @Provides
     @Singleton
+    fun provideJira(
+        service: JiraService
+    ): Jira {
+        return Jira(service)
+    }
+
+    @Provides
+    @Singleton
     fun provideIssueRepository(
-        jira: JiraService,
+        jira: Jira,
         userRepository: UserRepository,
         database: AppDatabase
     ): JiraRepository {

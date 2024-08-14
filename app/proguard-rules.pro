@@ -32,6 +32,9 @@
 # R8 full mode strips generic signatures from return types if not kept.
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
 
+-keep interface dae.aevum.network.JiraService { *; }
+-keep class dae.aevum.network.models.** { *; }
+
 # endregion
 
 
