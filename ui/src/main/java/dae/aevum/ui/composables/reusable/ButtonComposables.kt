@@ -33,7 +33,7 @@ import dae.aevum.utils.IssueId
 fun StartStopLoggingButton(
     modifier: Modifier = Modifier,
     @PreviewParameter(SampleIssueUiModelProvider::class, 1) issue: IssueId,
-    viewModel: IssueViewModel = hiltViewModel(),
+    viewModel: dae.aevum.ui.viewmodels.IssueViewModel = hiltViewModel(),
     startLogging: (IssueId) -> Unit = {},
     stopLogging: (Long) -> Unit = {},
 ) {

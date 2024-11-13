@@ -26,12 +26,11 @@ import dae.aevum.ui.models.IssueUiModel
 import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.utils.IssueId
 import timber.log.Timber
-import java.time.Instant
 
 @Composable
 fun IssueListScreen(
     modifier: Modifier = Modifier,
-    viewModel: IssueViewModel = hiltViewModel(),
+    viewModel: dae.aevum.ui.viewmodels.IssueViewModel = hiltViewModel(),
     onNavigateToIssue: (IssueId) -> Unit,
     onTogglePinIssue: (IssueId) -> Unit = {}
 ) {
@@ -57,7 +56,7 @@ fun IssueListScreen(
 @Composable
 fun IssueList(
     modifier: Modifier = Modifier,
-    viewModel: IssueViewModel = hiltViewModel(),
+    viewModel: dae.aevum.ui.viewmodels.IssueViewModel = hiltViewModel(),
     onIssueSelected: (IssueId) -> Unit,
     onTogglePinIssue: ((IssueId) -> Unit)? = null
 ) {
@@ -116,7 +115,7 @@ fun IssueList(
 @Composable
 fun IssueScreen(
     modifier: Modifier = Modifier,
-    viewModel: IssueViewModel = hiltViewModel(),
+    viewModel: dae.aevum.ui.viewmodels.IssueViewModel = hiltViewModel(),
     issueId: IssueId?,
     stopLogging: (Long) -> Unit = {},
     deleteWorklog: (Long) -> Unit = {},

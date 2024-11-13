@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dae.aevum.domain.repositories.AudioRepository
 import dae.aevum.domain.repositories.JiraRepository
-import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.models.WorklogUiModel
 import dae.aevum.utils.IssueId
 import dagger.hilt.android.lifecycle.HiltViewModel

@@ -5,6 +5,9 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.FloatingActionButton
@@ -158,6 +161,7 @@ fun AppScaffold(
     }
 
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
         backgroundColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
         bottomBar = {
@@ -199,6 +203,7 @@ private fun TopBar(
     currentScreen: Screen
 ) {
     TopAppBar(
+        modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars),
         title = {
             Icon(
                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_launcher_foreground),
@@ -222,6 +227,7 @@ private fun BottomBar(
     activeUser: UserUiModel?
 ) {
     BottomNavigation(
+        modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars),
         backgroundColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {

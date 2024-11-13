@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.Card
@@ -21,7 +20,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,7 +36,6 @@ import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.utils.IssueId
 import dae.aevum.ui.preview.SampleIssueUiModelProvider
 import timber.log.Timber
-import java.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(widthDp = 320)
@@ -104,7 +101,7 @@ fun IssueCard(
 fun IssueDetails(
     modifier: Modifier = Modifier,
     @PreviewParameter(SampleIssueUiModelProvider::class, 1) model: IssueUiModel,
-    viewModel: IssueViewModel = hiltViewModel(),
+    viewModel: dae.aevum.ui.viewmodels.IssueViewModel = hiltViewModel(),
     startLogging: (IssueId) -> Unit = {},
     stopLogging: (Long) -> Unit = {},
     deleteWorklog: (Long) -> Unit = {},

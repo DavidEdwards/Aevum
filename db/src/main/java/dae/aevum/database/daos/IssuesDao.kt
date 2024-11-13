@@ -40,7 +40,7 @@ interface IssuesDao {
     @Query("SELECT worklogs.*, issues.title AS issueTitle FROM issues, worklogs WHERE issues.id = worklogs.issueId AND worklogs.workId = :worklogId AND issues.userId = :userId")
     fun flowWorklogById(userId: Int, worklogId: Long): Flow<WorklogIssue?>
 
-    @SuppressWarnings(RoomWarnings.CURSOR_MISMATCH)
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @RewriteQueriesToDropUnusedColumns
     @Transaction
     @Query("SELECT * FROM issues, worklogs WHERE issues.id = worklogs.issueId AND worklogs.active = 1 AND issues.userId = :userId LIMIT 1")

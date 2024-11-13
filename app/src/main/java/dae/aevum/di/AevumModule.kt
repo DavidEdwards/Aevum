@@ -39,7 +39,7 @@ class AevumModule {
             AppDatabase::class.java,
             "database"
         )
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration(true)
             .addMigrations(Migration_9_10())
             .build()
     }
@@ -62,7 +62,7 @@ class AevumModule {
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
-                setLevel(HttpLoggingInterceptor.Level.BASIC)
+                setLevel(HttpLoggingInterceptor.Level.BODY)
             })
             .build()
     }

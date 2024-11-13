@@ -1,7 +1,6 @@
 package dae.aevum.ui.composables.dialogs
 
 import android.Manifest.permission.RECORD_AUDIO
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
@@ -29,7 +28,7 @@ import dae.aevum.ui.viewmodels.WorklogViewModel
 @Composable
 fun CompletedWorklogDialog(
     modifier: Modifier = Modifier,
-    viewModel: WorklogViewModel = hiltViewModel(),
+    viewModel: dae.aevum.ui.viewmodels.WorklogViewModel = hiltViewModel(),
     navController: NavController,
     worklogId: Long,
 ) {

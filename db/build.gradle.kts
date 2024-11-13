@@ -2,7 +2,7 @@ plugins {
     id("aevum.library")
     alias(libs.plugins.ksp)
     alias(libs.plugins.kapt)
-//    alias(libs.plugins.hilt)
+    alias(libs.plugins.hilt)
 }
 
 ksp {
@@ -33,7 +33,7 @@ dependencies {
     implementation(projects.common)
 
     implementation(libs.hilt.android)
-    implementation(libs.hilt.compiler)
+    kapt(libs.hilt.compiler)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

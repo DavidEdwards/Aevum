@@ -4,12 +4,15 @@ import com.android.build.api.dsl.ManagedVirtualDevice
 
 plugins {
     id("aevum.app")
+    id("aevum.compose")
 
     alias(libs.plugins.ksp)
     alias(libs.plugins.kapt)
     alias(libs.plugins.hilt)
+}
 
-    alias(libs.plugins.compose.compiler)
+hilt {
+    enableAggregatingTask = true
 }
 
 android {
@@ -47,24 +50,6 @@ android {
             )
         }
     }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
-    buildFeatures {
-        compose = true
-//        viewBinding = true
-//        buildConfig = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.9"
-    }
 
     lint {
         checkDependencies = true
@@ -79,26 +64,24 @@ android {
         unitTests.isIncludeAndroidResources = true
         execution = "ANDROIDX_TEST_ORCHESTRATOR"
         managedDevices {
-            devices.create<ManagedVirtualDevice>("pixel5") {
-                device = "Pixel 5"
-                apiLevel = 31
-            }
-            devices.create<ManagedVirtualDevice>("nexus7") {
-                device = "Nexus 7"
-                apiLevel = 31
-            }
-            devices.create<ManagedVirtualDevice>("nexus10") {
-                device = "Nexus 10"
-                apiLevel = 31
+            devices {
+                create<ManagedVirtualDevice>("pixel5") {
+                    device = "Pixel 5"
+                    apiLevel = 31
+                }
+                create<ManagedVirtualDevice>("nexus7") {
+                    device = "Nexus 7"
+                    apiLevel = 31
+                }
+                create<ManagedVirtualDevice>("nexus10") {
+                    device = "Nexus 10"
+                    apiLevel = 31
+                }
             }
             groups.create("screenshotDevices") {
                 targetDevices.addAll(devices.toList())
             }
         }
-    }
-
-    ksp {
-        arg("room.generateKotlin", "true")
     }
 }
 
@@ -136,7 +119,7 @@ dependencies {
 
     // region Dependency Injection
     implementation(libs.hilt.android)
-    implementation(libs.hilt.compiler)
+    kapt(libs.hilt.compiler)
     implementation(libs.hilt.nav)
     // endregion
 
@@ -144,6 +127,5 @@ dependencies {
 
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.espresso.core)
-    androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
 }

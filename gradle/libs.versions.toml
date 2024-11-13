@@ -2,37 +2,37 @@
 versionCode = "2"
 versionName = "1.0.3"
 
-sdk-compile = "34"
+sdk-compile = "35"
 sdk-min = "26"
-sdk-target = "34"
+sdk-target = "35"
 
 leakcanary = "2.14"
-agp = "8.5.2"
-kotlin = "2.0.0"
-core-ktx = "1.13.1"
+agp = "8.10.1"
+kotlin = "2.1.21"
+core-ktx = "1.16.0"
 junit = "4.13.2"
 androidx-test-ext-junit = "1.2.1"
 espresso-core = "3.6.1"
-lifecycle = "2.8.4"
-activity-compose = "1.9.1"
-compose-bom = "2024.06.00"
+lifecycle = "2.9.1"
+activity-compose = "1.10.1"
+compose-bom = "2025.06.00"
 timber = "5.0.1"
-compose-nav = "2.7.7"
-compose-icons = "1.7.0-beta07"
-room = "2.6.1"
+compose-nav = "2.9.0"
+compose-icons = "1.7.8"
+room = "2.7.1"
 okhttp = "4.12.0"
-retrofit = "2.11.0"
-hilt = "2.51"
+retrofit = "3.0.0"
+hilt = "2.56.2"
 hilt-nav = "1.2.0"
-ksp = "2.0.0-1.0.23"
-accompanist-permissions = "0.31.4-beta"
-appcompat = "1.7.0"
+ksp = "2.1.21-2.0.1"
+accompanist-permissions = "0.37.3"
+appcompat = "1.7.1"
 material = "1.12.0"
 
-ktlint-core = "1.2.1"
-ktlint-gradlePlugin = "0.9.0"
+ktlint-core = "1.6.0"
+ktlint-gradlePlugin = "0.10.0"
 
-coroutines = "1.8.1"
+coroutines = "1.10.2"
 
 coil = "2.7.0"
 
@@ -76,9 +76,9 @@ material = { group = "com.google.android.material", name = "material", version.r
 
 ktlint-core = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlint-core" }
 ktlint-gradlePlugin = { module = "io.github.usefulness:ktlint-gradle-plugin", version.ref = "ktlint-gradlePlugin" }
-ktlint-compose = "io.nlopez.compose.rules:ktlint:0.4.1"
+ktlint-compose = "io.nlopez.compose.rules:ktlint:0.4.22"
 
-desugar = "com.android.tools:desugar_jdk_libs:2.0.4"
+desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
 
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "coroutines" }
@@ -105,14 +105,14 @@ compose-activity = { group = "androidx.activity", name = "activity-compose", ver
 coil = "io.coil-kt:coil-compose:2.7.0"
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
-mockk = "io.mockk:mockk:1.13.12"
-robolectric = "org.robolectric:robolectric:4.13"
+mockk = "io.mockk:mockk:1.14.2"
+robolectric = "org.robolectric:robolectric:4.14.1"
 
 androidX-test-runner = "androidx.test:runner:1.6.2"
 androidX-test-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
 androidX-test-core = "androidx.test:core-ktx:1.6.1"
 
-androidTest-orchestrator = "androidx.test:orchestrator:1.5.0"
+androidTest-orchestrator = "androidx.test:orchestrator:1.5.1"
 androidTest-services-testServices = "androidx.test.services:test-services:1.5.0"
 androidTest-services-storage = "androidx.test.services:storage:1.5.0"
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso-core" }
@@ -133,15 +133,17 @@ compose = [
     "compose-ui-ui",
     "compose-ui-tooling-preview",
     "compose-foundation",
-    #"compose-navigation",
+    "compose-nav",
     "compose-material-icons-core",
     "compose-material-icons-extended",
     "compose-animation-graphics",
     "compose-animation-animation",
     "core-ktx",
+    "material2",
     "compose-material3",
     "compose-activity",
     "coil",
+    "accompanist-permissions",
 ]
 
 testing-jvm = [

@@ -29,7 +29,8 @@ class Jira(private val jiraService: JiraService) {
             jiraService.getUser(email).execute().body()
         } ?: throw IllegalArgumentException("Could not get Jira account id for $email")
 
-        return body.users.first()
+        return body.users.firstOrNull()
+            ?: throw IllegalArgumentException("Could not get Jira account id for $email")
     }
 
     suspend fun searchIssues(userId: Int, searches: List<String>) = withContext(Dispatchers.IO) {
