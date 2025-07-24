@@ -34,6 +34,9 @@ interface IssuesDao {
     @Query("SELECT * FROM issues WHERE id = :issueId AND userId = :userId")
     suspend fun findIssueById(userId: Int, issueId: String): IssueEntity
 
+    @Query("SELECT COUNT(*) FROM issues WHERE id = :issueId AND userId = :userId")
+    suspend fun issueExists(userId: Int, issueId: String): Int
+
     @Query("SELECT * FROM issues WHERE id = :issueId AND userId = :userId")
     fun flowIssueById(userId: Int, issueId: String): Flow<IssueEntity>
 

@@ -5,6 +5,7 @@ import dae.aevum.database.entities.UserEntity
 import dae.aevum.database.entities.WorklogEntity
 import dae.aevum.network.models.CommentNodeRetro
 import dae.aevum.network.models.SearchRequestRetro
+import dae.aevum.network.models.SearchRetro
 import dae.aevum.network.models.UserRetro
 import dae.aevum.network.models.WorklogAddRetro
 import dae.aevum.utils.Formatters
@@ -72,9 +73,45 @@ class Jira(private val jiraService: JiraService) {
         entityList
     }
 
+    suspend fun loadIssue(userId: Int, issueKey: String): IssueEntity? {
+        try {
+            val response = withContext(Dispatchers.IO) {
+                jiraService.searchIssues(
+                    SearchRequestRetro(
+                        jql = "issuekey = $issueKey",
+                        fields = listOf("summary")
+                    )
+                ).execute()
+            }
+
+            yield()
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.issues.isNotEmpty()) {
+                    val issueRetro = body.issues.first()
+                    return IssueEntity(
+                        id = IssueId(issueRetro.key),
+                        userId = userId,
+                        title = issueRetro.fields.summary,
+                        pinned = false,
+                        sort = 0
+                    )
+                } else {
+                    Timber.e("No body or no issues found for key: $issueKey")
+                }
+            } else {
+                Timber.e("Failed to load issue $issueKey: ${response.message()}")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Exception loading issue $issueKey")
+        }
+        return null
+    }
+
     suspend fun refreshWorklogsFor(issueId: IssueId, user: UserEntity): List<WorklogEntity> {
         try {
             val response = withContext(Dispatchers.IO) {
+                Timber.v("Fetching worklogs for issue: ${issueId.value}")
                 val call = jiraService.listWorklogsFor(
                     issueId.value,
                     System.currentTimeMillis() - JiraService.ONE_WEEK_IN_MILLIS
@@ -87,12 +124,11 @@ class Jira(private val jiraService: JiraService) {
                 val body = response.body()
                 if (body != null) {
                     val entities = body.worklogs.map {
-                        val parsedTime =
-                            LocalDateTime.parse(
-                                it.started,
-                                Formatters.universalDateTimeZoneFormatter
-                            )
-                                .toInstant(ZoneOffset.UTC)
+                        val parsedTime = LocalDateTime.parse(
+                            it.started,
+                            Formatters.universalDateTimeZoneFormatter
+                        ).toInstant(ZoneOffset.UTC)
+
                         WorklogEntity(
                             workId = it.id.toLong(),
                             issueId = issueId,
@@ -113,6 +149,46 @@ class Jira(private val jiraService: JiraService) {
                 }
             } else {
                 Timber.e(response.message())
+            }
+        } catch (e: Exception) {
+            Timber.e(e)
+        }
+        return emptyList()
+    }
+
+    suspend fun refreshWorklogsToday(user: UserEntity): List<WorklogEntity> {
+        try {
+            // Get all issues for the user
+            val issues = withContext(Dispatchers.IO) {
+                val call = jiraService.searchIssues(
+                    SearchRequestRetro(
+                        jql = "worklogAuthor=currentUser() AND worklogDate >= startOfDay() AND worklogDate <= endOfDay()",
+                        fields = listOf("key")
+                    )
+                )
+                call.execute()
+            }
+
+            yield()
+            if (issues.isSuccessful) {
+                val body = issues.body()
+                if (body != null) {
+                    val issueKeys = body.issues.map { it.key }
+
+                    // Fetch worklogs for each issue
+                    val allWorklogs = mutableListOf<WorklogEntity>()
+
+                    issueKeys.forEach { issueKey ->
+                        val worklogs = refreshWorklogsFor(IssueId(issueKey), user)
+                        allWorklogs.addAll(worklogs)
+                    }
+
+                    return allWorklogs
+                } else {
+                    Timber.e("No body for issues")
+                }
+            } else {
+                Timber.e(issues.message())
             }
         } catch (e: Exception) {
             Timber.e(e)

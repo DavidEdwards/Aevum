@@ -59,9 +59,9 @@ fun WorklogListScreen(
         modifier = modifier
             .padding(horizontal = 16.dp),
         result = worklogs,
-//        refresh = {
-//            viewModel
-//        }
+        refresh = {
+            viewModel.refreshWorklogsToday()
+        }
     ) { models ->
         Spacer(modifier = Modifier.height(8.dp))
 

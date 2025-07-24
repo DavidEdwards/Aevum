@@ -31,6 +31,7 @@ interface JiraRepository {
     fun flowIssues(): Flow<List<IssueEntity>>
     suspend fun refreshIssuesfromJira()
     suspend fun refreshWorklogsFor(issueId: IssueId)
+    suspend fun refreshWorklogsToday()
     fun flowIssue(issueId: IssueId): Flow<IssueEntity>
     fun flowWorklog(worklogId: Long): Flow<WorklogIssue?>
     fun worklogsForIssue(issueId: IssueId): Flow<List<WorklogEntity>>
@@ -112,6 +113,9 @@ class JiraRepositoryImpl(
             val user = userRepository.getActiveUser()
                 ?: return
 
+            // Ensure the issue exists in the database
+            ensureIssueExists(user.id, issueId)
+
             yield()
             val entities = withContext(Dispatchers.IO) {
                 jira.refreshWorklogsFor(
@@ -126,6 +130,49 @@ class JiraRepositoryImpl(
             }
         } catch (e: Exception) {
             Timber.e(e)
+        }
+    }
+
+    override suspend fun refreshWorklogsToday() {
+        try {
+            val user = userRepository.getActiveUser()
+                ?: return
+
+            yield()
+            val entities = withContext(Dispatchers.IO) {
+                jira.refreshWorklogsToday(user)
+            }
+
+            yield()
+            if (entities.isNotEmpty()) {
+                // Ensure all issues referenced in worklogs exist in the database
+                val issueIds = entities.map { it.issueId }.distinct()
+                issueIds.forEach { issueId ->
+                    ensureIssueExists(user.id, issueId)
+                }
+                
+                database.worklogDao().addWorks(entities)
+            }
+        } catch (e: Exception) {
+            Timber.e(e)
+        }
+    }
+
+    private suspend fun ensureIssueExists(userId: Int, issueId: IssueId) {
+        try {
+            val exists = database.issueDao().issueExists(userId, issueId.value)
+            if (exists == 0) {
+                Timber.v("Issue ${issueId.value} not found in database, loading from Jira...")
+                val issue = jira.loadIssue(userId, issueId.value)
+                if (issue != null) {
+                    database.issueDao().addIssue(issue)
+                    Timber.v("Successfully loaded issue ${issueId.value} from Jira")
+                } else {
+                    Timber.w("Failed to load issue ${issueId.value} from Jira")
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Error ensuring issue ${issueId.value} exists")
         }
     }
 

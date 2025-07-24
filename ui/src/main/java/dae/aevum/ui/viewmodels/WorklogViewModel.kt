@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dae.aevum.domain.repositories.AudioRepository
 import dae.aevum.domain.repositories.JiraRepository
+import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.models.WorklogUiModel
 import dae.aevum.utils.IssueId
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,8 +15,10 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import java.time.Instant
 import javax.inject.Inject
+import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -33,7 +36,7 @@ class WorklogViewModel @Inject constructor(
                 jiraRepository.flowWorklog(worklogId)
             }
         }
-        .map { entity -> entity?.let { dae.aevum.ui.models.WorklogIssueUiModel.fromEntity(entity = it) } }
+        .map { entity -> entity?.let { WorklogIssueUiModel.fromEntity(entity = it) } }
 
     val pendingWorklogs = jiraRepository.getPendingWorklogs()
         .map { list ->
@@ -42,7 +45,7 @@ class WorklogViewModel @Inject constructor(
 
     val worklogsTodayFromMe = jiraRepository.getWorklogsTodayFromMe()
         .map { list ->
-            list.map { dae.aevum.ui.models.WorklogIssueUiModel.fromEntity(entity = it) }
+            list.map { WorklogIssueUiModel.fromEntity(entity = it) }
         }
 
     fun setViewedWorklogId(id: Long?) {
@@ -89,10 +92,10 @@ class WorklogViewModel @Inject constructor(
             try {
                 val success = jiraRepository.splitWorklog(worklogId, issueId, splitTime, withNewId)
                 if (!success) {
-                    timber.log.Timber.e("Split worklog operation returned false for worklogId: $worklogId")
+                    Timber.e("Split worklog operation returned false for worklogId: $worklogId")
                 }
             } catch (e: Exception) {
-                timber.log.Timber.e(e, "Failed to split worklog $worklogId to issue ${issueId.value}")
+                Timber.e(e, "Failed to split worklog $worklogId to issue ${issueId.value}")
             }
         }
     }
@@ -116,6 +119,13 @@ class WorklogViewModel @Inject constructor(
             val summary = audioRepository.getAudioText()
             jiraRepository.stopLogging(summary)
             after()
+        }
+    }
+
+    fun refreshWorklogsToday(): Job {
+        return viewModelScope.launch {
+            Timber.v("Refreshing worklogs for today from Jira...")
+            jiraRepository.refreshWorklogsToday()
         }
     }
 
