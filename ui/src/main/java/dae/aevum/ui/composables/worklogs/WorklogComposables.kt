@@ -114,15 +114,21 @@ fun WorklogCard(
                 ) {
                     TimeLabel(from = worklogUiModel.from, to = worklogTo)
                     Spacer(modifier = Modifier.height(8.dp))
-                    if (worklogUiModel.active) {
+
+                    if (worklogUiModel.active || worklogUiModel.pending) {
                         Text(
                             text = stringResource(
                                 R.string.logging_to_x,
                                 worklogUiModel.issueId.value
                             )
                         )
-                    } else {
+                    }
+
+                    if(worklogUiModel.author.isNotBlank()) {
                         Text(text = worklogUiModel.author)
+                    }
+
+                    if(worklogUiModel.comment.isNotBlank()) {
                         Text(text = worklogUiModel.comment)
                     }
                 }

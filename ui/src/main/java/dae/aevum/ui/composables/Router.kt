@@ -305,7 +305,8 @@ private fun Fab(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = stringResource(R.string.upload_worklogs)
+                    contentDescription = stringResource(R.string.upload_worklogs),
+                    tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
         }
@@ -320,7 +321,8 @@ private fun Fab(
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = stringResource(R.string.add_user)
+                contentDescription = stringResource(R.string.add_user),
+                tint = MaterialTheme.colorScheme.onPrimary
             )
         }
     }
