@@ -46,5 +46,6 @@ interface JiraService {
 
     companion object {
         const val ONE_WEEK_IN_MILLIS = 604800000L
+        const val ONE_MONTH_IN_MILLIS = ONE_WEEK_IN_MILLIS * 4
     }
 }

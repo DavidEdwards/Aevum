@@ -99,9 +99,9 @@ fun IssueCard(
 @Preview(widthDp = 320, showBackground = true)
 @Composable
 fun IssueDetails(
-    modifier: Modifier = Modifier,
     @PreviewParameter(SampleIssueUiModelProvider::class, 1) model: IssueUiModel,
-    viewModel: dae.aevum.ui.viewmodels.IssueViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier,
+    viewModel: IssueViewModel = hiltViewModel(),
     startLogging: (IssueId) -> Unit = {},
     stopLogging: (Long) -> Unit = {},
     deleteWorklog: (Long) -> Unit = {},

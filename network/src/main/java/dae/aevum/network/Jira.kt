@@ -114,7 +114,7 @@ class Jira(private val jiraService: JiraService) {
                 Timber.v("Fetching worklogs for issue: ${issueId.value}")
                 val call = jiraService.listWorklogsFor(
                     issueId.value,
-                    System.currentTimeMillis() - JiraService.ONE_WEEK_IN_MILLIS
+                    System.currentTimeMillis() - JiraService.ONE_MONTH_IN_MILLIS
                 )
                 call.execute()
             }
