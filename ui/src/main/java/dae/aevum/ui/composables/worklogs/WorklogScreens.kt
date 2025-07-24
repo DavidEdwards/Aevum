@@ -43,7 +43,7 @@ import kotlin.math.max
 @Composable
 fun WorklogListScreen(
     modifier: Modifier = Modifier,
-    viewModel: dae.aevum.ui.viewmodels.WorklogViewModel = hiltViewModel(),
+    viewModel: WorklogViewModel = hiltViewModel(),
     onNavigateToEditor: (Long) -> Unit,
     stopLogging: (Long) -> Unit = {},
     deleteWorklog: (Long) -> Unit = {},
@@ -58,8 +58,13 @@ fun WorklogListScreen(
     PullToRefreshList(
         modifier = modifier
             .padding(horizontal = 16.dp),
-        result = worklogs
+        result = worklogs,
+//        refresh = {
+//            viewModel
+//        }
     ) { models ->
+        Spacer(modifier = Modifier.height(8.dp))
+
         AlreadyLoggedTodayList()
 
         if (models.isEmpty()) {
@@ -91,7 +96,7 @@ fun WorklogListScreen(
 @Composable
 fun AlreadyLoggedTodayList(
     modifier: Modifier = Modifier,
-    viewModel: dae.aevum.ui.viewmodels.WorklogViewModel = hiltViewModel()
+    viewModel: WorklogViewModel = hiltViewModel()
 ) {
     val worklogsToday by viewModel.worklogsTodayFromMe.collectAsState(initial = emptyList())
 
@@ -137,7 +142,7 @@ fun AlreadyLoggedTodayList(
 @Composable
 fun WorklogEditorScreen(
     modifier: Modifier = Modifier,
-    viewModel: dae.aevum.ui.viewmodels.WorklogViewModel = hiltViewModel(),
+    viewModel: WorklogViewModel = hiltViewModel(),
     worklogId: Long?,
     updateWorklog: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
     splitWorklog: (Long) -> Unit = {}
@@ -166,7 +171,7 @@ fun WorklogEditorScreen(
 @Composable
 fun WorklogSplitterIssueScreen(
     modifier: Modifier = Modifier,
-    viewModel: dae.aevum.ui.viewmodels.WorklogViewModel = hiltViewModel(),
+    viewModel: WorklogViewModel = hiltViewModel(),
     worklogId: Long?,
     issueSelected: (IssueId) -> Unit = {},
 ) {
@@ -188,7 +193,7 @@ fun WorklogSplitterIssueScreen(
 @Composable
 fun WorklogSplitterTimeScreen(
     modifier: Modifier = Modifier,
-    viewModel: dae.aevum.ui.viewmodels.WorklogViewModel = hiltViewModel(),
+    viewModel: WorklogViewModel = hiltViewModel(),
     worklogId: Long,
     issueId: IssueId,
     splitWorklog: (Long, IssueId, Instant) -> Unit = { _, _, _ -> },

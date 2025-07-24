@@ -30,7 +30,7 @@ import timber.log.Timber
 @Composable
 fun IssueListScreen(
     modifier: Modifier = Modifier,
-    viewModel: dae.aevum.ui.viewmodels.IssueViewModel = hiltViewModel(),
+    viewModel: IssueViewModel = hiltViewModel(),
     onNavigateToIssue: (IssueId) -> Unit,
     onTogglePinIssue: (IssueId) -> Unit = {}
 ) {
@@ -56,7 +56,7 @@ fun IssueListScreen(
 @Composable
 fun IssueList(
     modifier: Modifier = Modifier,
-    viewModel: dae.aevum.ui.viewmodels.IssueViewModel = hiltViewModel(),
+    viewModel: IssueViewModel = hiltViewModel(),
     onIssueSelected: (IssueId) -> Unit,
     onTogglePinIssue: ((IssueId) -> Unit)? = null
 ) {
@@ -115,7 +115,7 @@ fun IssueList(
 @Composable
 fun IssueScreen(
     modifier: Modifier = Modifier,
-    viewModel: dae.aevum.ui.viewmodels.IssueViewModel = hiltViewModel(),
+    viewModel: IssueViewModel = hiltViewModel(),
     issueId: IssueId?,
     stopLogging: (Long) -> Unit = {},
     deleteWorklog: (Long) -> Unit = {},

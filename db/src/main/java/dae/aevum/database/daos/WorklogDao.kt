@@ -10,6 +10,7 @@ import androidx.room.Update
 import dae.aevum.database.entities.WorklogEntity
 import dae.aevum.database.entities.composites.WorklogIssue
 import kotlinx.coroutines.flow.Flow
+import timber.log.Timber
 import java.time.Instant
 
 @Dao
@@ -21,7 +22,7 @@ interface WorklogDao {
     suspend fun addWorks(entity: List<WorklogEntity>)
 
     @Query("SELECT * FROM worklogs WHERE workId = :workId")
-    suspend fun findWorkById(workId: Long): WorklogEntity
+    suspend fun findWorkById(workId: Long): WorklogEntity?
 
     @Query("SELECT * FROM worklogs WHERE issueId = :issueId ORDER BY `from` DESC LIMIT 50")
     fun flowWorkByIssueId(issueId: String): Flow<List<WorklogEntity>>
@@ -54,7 +55,7 @@ interface WorklogDao {
         dayEnd: Instant
     ): Flow<List<WorklogEntity>>
 
-    @Query("SELECT * FROM worklogs WHERE userId = :userId AND jiraUserAccountId = :jiraUserAccountId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC")
+    @Query("SELECT * FROM worklogs WHERE userId = :userId AND jiraUserAccountId = :jiraUserAccountId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC LIMIT 50")
     fun getWorklogsTodayFromMe(
         userId: Int,
         dayStart: Instant,
@@ -76,7 +77,34 @@ interface WorklogDao {
 
     @Transaction
     suspend fun splitWork(splitFrom: WorklogEntity, splitTo: WorklogEntity): Long {
-        updateWork(splitFrom)
-        return addWork(splitTo)
+        try {
+            // Validate inputs before transaction
+            if (splitFrom.workId <= 0) {
+                throw IllegalArgumentException("Invalid source worklog ID: ${splitFrom.workId}")
+            }
+            if (splitFrom.from.isAfter(splitFrom.to)) {
+                throw IllegalArgumentException("Invalid time range: from ${splitFrom.from} to ${splitFrom.to}")
+            }
+            if (splitTo.from.isBefore(splitFrom.from) || splitTo.from.isAfter(splitFrom.to)) {
+                throw IllegalArgumentException("Split time ${splitTo.from} is outside worklog range")
+            }
+
+            updateWork(splitFrom)
+            val newId = addWork(splitTo)
+
+            // Verify both operations succeeded
+            val updatedFrom = findWorkById(splitFrom.workId)
+            val newWorklog = findWorkById(newId)
+
+            if (updatedFrom == null || newWorklog == null) {
+                throw IllegalStateException("Split operation failed - one or both worklogs not found after operation")
+            }
+            
+            return newId
+        } catch (e: Exception) {
+            // Log the error for debugging
+            Timber.e(e, "Failed to split worklog from ${splitFrom.workId} to new worklog")
+            throw e
+        }
     }
 }

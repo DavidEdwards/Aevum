@@ -5,6 +5,7 @@ import dae.aevum.database.entities.UserEntity
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
+import timber.log.Timber
 import java.net.HttpURLConnection
 
 class AuthInterceptor(
@@ -16,9 +17,12 @@ class AuthInterceptor(
             val activeUser = runBlocking {
                 getActiveUser()
             } ?: return run {
+                Timber.w("No active user found for request")
                 Response.Builder()
                     .code(HttpURLConnection.HTTP_UNAUTHORIZED)
                     .message("User required")
+                    .request(chain.request())
+                    .protocol(okhttp3.Protocol.HTTP_1_1)
                     .build()
             }
 
@@ -36,8 +40,8 @@ class AuthInterceptor(
                 )
                 .url(url)
                 .build()
-        } catch (e: IllegalStateException) {
-            e.printStackTrace()
+        } catch (e: Exception) {
+            Timber.e(e, "Error in AuthInterceptor")
             chain.request()
         }
 

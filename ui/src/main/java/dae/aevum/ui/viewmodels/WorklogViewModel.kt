@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.time.Instant
 import javax.inject.Inject
 
@@ -85,7 +86,14 @@ class WorklogViewModel @Inject constructor(
         withNewId: suspend (Long) -> Unit
     ) {
         viewModelScope.launch {
-            jiraRepository.splitWorklog(worklogId, issueId, splitTime, withNewId)
+            try {
+                val success = jiraRepository.splitWorklog(worklogId, issueId, splitTime, withNewId)
+                if (!success) {
+                    timber.log.Timber.e("Split worklog operation returned false for worklogId: $worklogId")
+                }
+            } catch (e: Exception) {
+                timber.log.Timber.e(e, "Failed to split worklog $worklogId to issue ${issueId.value}")
+            }
         }
     }
 

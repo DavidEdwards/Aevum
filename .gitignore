@@ -64,3 +64,5 @@ artifacts
 /captures
 .externalNativeBuild
 .cxx
+
+.context.ai

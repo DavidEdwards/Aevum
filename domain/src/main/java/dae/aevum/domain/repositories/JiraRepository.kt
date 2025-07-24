@@ -69,6 +69,7 @@ class JiraRepositoryImpl(
     private val userRepository: UserRepository,
     private val database: AppDatabase
 ) : JiraRepository {
+
     override suspend fun getJiraAccountId(email: String): String {
         return jira.getJiraAccount(email).accountId
     }
@@ -89,10 +90,6 @@ class JiraRepositoryImpl(
         return@supervisorScope try {
             val user = userRepository.getActiveUser()
                 ?: return@supervisorScope
-
-//            val formattedAfter = App.universalDateFormatter.format(
-//                Instant.now().minus(30, ChronoUnit.DAYS)
-//            )
 
             yield()
 
@@ -269,7 +266,20 @@ class JiraRepositoryImpl(
         to: Instant,
         summary: String
     ) {
+        // Validate inputs
+        if (worklogId <= 0) {
+            throw IllegalArgumentException("Invalid worklog ID: $worklogId")
+        }
+        if (from.isAfter(to)) {
+            throw IllegalArgumentException("Invalid time range: from $from to $to")
+        }
+        if (summary.isBlank()) {
+            throw IllegalArgumentException("Summary cannot be blank")
+        }
+
         val entity = database.worklogDao().findWorkById(worklogId)
+            ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
+
         val newEntity = entity.copy(
             from = from,
             to = to,
@@ -282,7 +292,16 @@ class JiraRepositoryImpl(
         worklogId: Long,
         amount: Long
     ) {
+        // Validate inputs
+        if (worklogId <= 0) {
+            throw IllegalArgumentException("Invalid worklog ID: $worklogId")
+        }
+        if (amount <= 0) {
+            throw IllegalArgumentException("Amount must be positive: $amount")
+        }
+
         val entity = database.worklogDao().findWorkById(worklogId)
+            ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
 
         var newInstant = entity.from.minusMillis(amount)
         if (newInstant.isAfter(Instant.now())) {
@@ -299,7 +318,16 @@ class JiraRepositoryImpl(
         worklogId: Long,
         amount: Long
     ) {
+        // Validate inputs
+        if (worklogId <= 0) {
+            throw IllegalArgumentException("Invalid worklog ID: $worklogId")
+        }
+        if (amount <= 0) {
+            throw IllegalArgumentException("Amount must be positive: $amount")
+        }
+
         val entity = database.worklogDao().findWorkById(worklogId)
+            ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
 
         var newInstant = entity.from.plusMillis(amount)
         if (newInstant.isAfter(Instant.now())) {
@@ -317,6 +345,8 @@ class JiraRepositoryImpl(
         issueId: IssueId
     ) {
         val entity = database.worklogDao().findWorkById(worklogId)
+            ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
+
         val newEntity = entity.copy(
             issueId = issueId
         )
@@ -329,27 +359,49 @@ class JiraRepositoryImpl(
         splitAt: Instant,
         withNewId: suspend (Long) -> Unit
     ): Boolean {
-        val entity = database.worklogDao().findWorkById(worklogId)
+        try {
+            val entity = database.worklogDao().findWorkById(worklogId)
+                ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
 
-        if (!entity.pending || entity.active) {
-            Timber.e("Tried to split either a worklog that is already sent or an active log. Only non-active, pending logs can be split.")
+            if (!entity.pending || entity.active) {
+                Timber.e("Tried to split either a worklog that is already sent or an active log. Only non-active, pending logs can be split.")
+                return false
+            }
+
+            // Validate split time is within the worklog's time range
+            if (splitAt.isBefore(entity.from) || splitAt.isAfter(entity.to)) {
+                Timber.e("Split time $splitAt is outside worklog time range (${entity.from} to ${entity.to})")
+                return false
+            }
+
+            val firstEntity = entity.copy(
+                to = splitAt
+            )
+            val secondEntity = entity.copy(
+                workId = 0,
+                issueId = newIssueId,
+                from = splitAt,
+                summary = ""
+            )
+
+            val id = database.worklogDao().splitWork(firstEntity, secondEntity)
+
+            // Verify the split operation succeeded by checking both worklogs exist
+            val firstWorklog = database.worklogDao().findWorkById(worklogId)
+            val secondWorklog = database.worklogDao().findWorkById(id)
+
+            if (firstWorklog == null || secondWorklog == null) {
+                Timber.e("Split operation failed - one or both worklogs not found after split")
+                return false
+            }
+
+            withNewId(id)
+            return true
+
+        } catch (e: Exception) {
+            Timber.e(e, "Exception during splitWorklog operation for worklogId: $worklogId")
             return false
         }
-
-        val firstEntity = entity.copy(
-            to = splitAt
-        )
-        val secondEntity = entity.copy(
-            workId = 0,
-            issueId = newIssueId,
-            from = splitAt,
-            summary = ""
-        )
-
-        val id = database.worklogDao().splitWork(firstEntity, secondEntity)
-        withNewId(id)
-
-        return true
     }
 
     override suspend fun toggleIssuePin(issueId: IssueId) {
