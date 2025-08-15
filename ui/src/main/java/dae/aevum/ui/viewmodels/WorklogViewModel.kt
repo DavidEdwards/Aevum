@@ -18,6 +18,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -63,6 +67,9 @@ class WorklogViewModel @Inject constructor(
             list.map { WorklogIssueUiModel.fromEntity(entity = it) }
         }
 
+    private val _isUpdatingWorklog = MutableStateFlow(false)
+    val isUpdatingWorklog: StateFlow<Boolean> = _isUpdatingWorklog.asStateFlow()
+
     fun setViewedWorklogId(id: Long?) {
         savedStateHandle[SAVED_VIEWED_WORKLOG_ID] = id
     }
@@ -75,7 +82,22 @@ class WorklogViewModel @Inject constructor(
 
     fun updateWorklog(worklogId: Long, from: Instant, to: Instant, summary: String) {
         viewModelScope.launch {
+            _isUpdatingWorklog.value = true
+            try {
+                jiraRepository.updateWorklog(worklogId, from, to, summary)
+            } finally {
+                _isUpdatingWorklog.value = false
+            }
+        }
+    }
+
+    suspend fun updateWorklogAwait(worklogId: Long, from: Instant, to: Instant, summary: String) {
+        _isUpdatingWorklog.value = true
+        try {
+            // Call directly; repository already does validation and proofreading
             jiraRepository.updateWorklog(worklogId, from, to, summary)
+        } finally {
+            _isUpdatingWorklog.value = false
         }
     }
 
@@ -130,12 +152,54 @@ class WorklogViewModel @Inject constructor(
         }
     }
 
+    private val _isStoppingWorklog = MutableStateFlow(false)
+    val isStoppingWorklog: StateFlow<Boolean> = _isStoppingWorklog.asStateFlow()
+
+    fun stopLoggingFor(worklogId: Long, summary: String, after: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isStoppingWorklog.value = true
+            try {
+                jiraRepository.stopLoggingFor(worklogId, summary)
+                widgetRefresher.refreshAll()
+                after()
+            } finally {
+                _isStoppingWorklog.value = false
+            }
+        }
+    }
+
+    suspend fun stopLoggingForAwait(worklogId: Long, summary: String) {
+        _isStoppingWorklog.value = true
+        try {
+            jiraRepository.stopLoggingFor(worklogId, summary)
+            widgetRefresher.refreshAll()
+        } finally {
+            _isStoppingWorklog.value = false
+        }
+    }
+
     fun stopLoggingAudioLog(after: () -> Unit = {}) {
         viewModelScope.launch {
+            _isStoppingWorklog.value = true
+            try {
+                val summary = audioRepository.getAudioText()
+                jiraRepository.stopLogging(summary)
+                widgetRefresher.refreshAll()
+                after()
+            } finally {
+                _isStoppingWorklog.value = false
+            }
+        }
+    }
+
+    suspend fun stopLoggingAudioLogAwait() {
+        _isStoppingWorklog.value = true
+        try {
             val summary = audioRepository.getAudioText()
             jiraRepository.stopLogging(summary)
             widgetRefresher.refreshAll()
-            after()
+        } finally {
+            _isStoppingWorklog.value = false
         }
     }
 

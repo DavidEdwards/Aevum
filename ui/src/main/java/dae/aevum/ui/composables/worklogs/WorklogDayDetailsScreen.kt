@@ -145,7 +145,7 @@ private fun WorklogDayDetailsContent(
 
                 val isActive = e.active
                 val contentOnColor = if (isActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                val badgeBackground = if (isActive) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant
+                val badgeBackground = if (isActive) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
 
                 Card(
                     modifier = Modifier
@@ -170,17 +170,22 @@ private fun WorklogDayDetailsContent(
                                 modifier = Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Spacer(Modifier.width(6.dp))
+                                Spacer(Modifier.width(5.dp))
                                 Box(
                                     modifier = Modifier
                                         .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            Color.Black
+                                        )
+                                        .padding(1.dp)
                                         .clip(CircleShape)
                                         .background(
                                             colorMapForDay[e.issueId.value]
                                                 ?: MaterialTheme.colorScheme.primary
                                         )
                                 )
-                                Spacer(Modifier.width(12.dp))
+                                Spacer(Modifier.width(13.dp))
                                 Text(
                                     text = e.issueTitle,
                                     style = MaterialTheme.typography.titleMedium,
@@ -240,7 +245,7 @@ private fun WorklogDayDetailsContent(
                                 Icon(
                                     imageVector = Icons.Outlined.Description,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = contentOnColor
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(text = e.comment, style = MaterialTheme.typography.bodySmall)
@@ -405,8 +410,8 @@ private fun WorklogDayDetailsScreenPreview() {
             from = now.minusSeconds(5 * 3600),
             to = now.minusSeconds(3 * 3600),
             comment = "Implemented feature X",
-            pending = false,
-            active = false,
+            pending = true,
+            active = true,
             issueTitle = "AAPP-1"
         ),
         WorklogIssueUiModel(

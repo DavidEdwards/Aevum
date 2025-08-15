@@ -132,4 +132,10 @@ dependencies {
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.ui.test.junit4)
+
+    // ML Kit GenAI Proofreading
+    implementation("com.google.mlkit:genai-proofreading:1.0.0-beta1")
+
+    // For ListenableFuture await
+    implementation(libs.coroutines.guava)
 }

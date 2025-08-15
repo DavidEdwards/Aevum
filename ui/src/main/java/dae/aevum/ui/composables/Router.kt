@@ -1,6 +1,8 @@
 package dae.aevum.ui.composables
 
 import android.content.res.Configuration
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -42,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.core.os.postDelayed
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -51,6 +54,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import dae.aevum.common.R
 import dae.aevum.ui.composables.dialogs.AddUserDialog
 import dae.aevum.ui.composables.dialogs.CompletedWorklogDialog
@@ -70,6 +75,7 @@ import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.ui.viewmodels.UserViewModel
 import dae.aevum.ui.viewmodels.WorklogViewModel
 import dae.aevum.utils.IssueId
+import kotlinx.coroutines.delay
 import timber.log.Timber
 
 sealed class Screen(
@@ -478,11 +484,14 @@ private fun AppNavHost(
             composable(Screen.WorklogEditor.route) { backStackEntry ->
                 val viewModel: WorklogViewModel = hiltViewModel()
                 val worklogId = backStackEntry.arguments?.getString("worklogId")?.toLong()
+                val scope = rememberCoroutineScope()
                 WorklogEditorScreen(
                     worklogId = worklogId,
                     updateWorklog = { id, from, to, summary ->
-                        viewModel.updateWorklog(id, from, to, summary)
-                        navController.popBackStack()
+                        scope.launch {
+                            viewModel.updateWorklogAwait(id, from, to, summary)
+                            navController.popBackStack()
+                        }
                     },
                     viewModel = viewModel,
                     splitWorklog = { id ->

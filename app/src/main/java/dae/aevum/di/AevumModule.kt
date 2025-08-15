@@ -8,6 +8,8 @@ import dae.aevum.domain.repositories.AudioRepository
 import dae.aevum.domain.repositories.AudioRepositoryImpl
 import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.JiraRepositoryImpl
+import dae.aevum.domain.repositories.Proofreader
+import dae.aevum.domain.repositories.ChainedProofreader
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.domain.repositories.UserRepositoryImpl
 import dae.aevum.domain.repositories.WidgetRefresher
@@ -16,6 +18,8 @@ import dae.aevum.network.AuthInterceptor
 import dae.aevum.network.Jira
 import dae.aevum.network.JiraService
 import dae.aevum.utils.Urls
+import dae.aevum.ml.MlKitProofreader
+import dae.aevum.ml.LlamaProofreader
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -95,10 +99,29 @@ class AevumModule {
     fun provideIssueRepository(
         jira: Jira,
         userRepository: UserRepository,
-        database: AppDatabase
+        database: AppDatabase,
+        proofreader: Proofreader
     ): JiraRepository {
-        return JiraRepositoryImpl(jira, userRepository, database)
+        return JiraRepositoryImpl(jira, userRepository, database, proofreader)
     }
+
+    @Provides
+    @Singleton
+    fun provideProofreader(
+//        @ApplicationContext context: Context,
+        llama: LlamaProofreader
+    ): Proofreader = ChainedProofreader(
+        listOf(
+//            // First pass on-device for privacy and speed
+//            MlKitProofreader(context),
+            // Second pass via your Llama server for extra polish
+            llama
+        )
+    )
+
+    @Provides
+    @Singleton
+    fun provideLlamaProofreader(): LlamaProofreader = LlamaProofreader()
 
     @Provides
     @Singleton

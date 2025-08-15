@@ -41,6 +41,7 @@ interface JiraRepository {
     suspend fun startLogFor(issueId: IssueId)
     fun flowActiveIssue(): Flow<ActiveIssueEntity?>
     suspend fun stopLogging(summary: String)
+    suspend fun stopLoggingFor(worklogId: Long, summary: String)
     suspend fun deleteWorklog(worklogId: Long)
     fun getPendingWorklogs(): Flow<List<WorklogEntity>>
     fun getWorklogsToday(): Flow<List<WorklogEntity>>
@@ -73,7 +74,8 @@ interface JiraRepository {
 class JiraRepositoryImpl(
     private val jira: Jira,
     private val userRepository: UserRepository,
-    private val database: AppDatabase
+    private val database: AppDatabase,
+    private val proofreader: Proofreader
 ) : JiraRepository {
 
     override suspend fun getJiraAccountId(email: String): String {
@@ -237,15 +239,47 @@ class JiraRepositoryImpl(
 
         val now = Instant.now()
         val mostRecent = activeForUser.maxByOrNull { it.from }
+        Timber.v("Proofreading: $summary")
+        val refinedSummary = try {
+            if (summary.isBlank()) summary else proofreader.proofread(summary)
+        } catch (e: Exception) {
+            Timber.w(e, "Proofreading failed; using original summary")
+            summary
+        }
+        Timber.v("Proofreading refined: $refinedSummary")
 
         activeForUser.forEach { entity ->
             val updated = entity.copy(
                 active = false,
                 to = now,
-                summary = if (entity.workId == mostRecent?.workId) summary else entity.summary
+                summary = if (entity.workId == mostRecent?.workId) refinedSummary else entity.summary
             )
             database.worklogDao().updateWork(updated)
         }
+    }
+
+    override suspend fun stopLoggingFor(worklogId: Long, summary: String) {
+        val user = userRepository.getActiveUser() ?: return
+        val allWorks = database.worklogDao().getAllWorks()
+        val target = allWorks.firstOrNull { it.workId == worklogId && it.active && it.userId == user.id }
+            ?: return
+
+        val now = Instant.now()
+        Timber.v("Proofreading: $summary")
+        val refinedSummary = try {
+            if (summary.isBlank()) summary else proofreader.proofread(summary)
+        } catch (e: Exception) {
+            Timber.w(e, "Proofreading failed; using original summary")
+            summary
+        }
+        Timber.v("Proofreading refined: $refinedSummary")
+
+        val updated = target.copy(
+            active = false,
+            to = now,
+            summary = refinedSummary
+        )
+        database.worklogDao().updateWork(updated)
     }
 
     override suspend fun deleteWorklog(worklogId: Long) {
@@ -376,10 +410,19 @@ class JiraRepositoryImpl(
         val entity = database.worklogDao().findWorkById(worklogId)
             ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
 
+        Timber.v("Proofreading: $summary")
+        val refinedSummary = try {
+            if (summary.isBlank()) summary else proofreader.proofread(summary)
+        } catch (e: Exception) {
+            Timber.w(e, "Proofreading failed; using original summary")
+            summary
+        }
+        Timber.v("Proofreading refined: $refinedSummary")
+
         val newEntity = entity.copy(
             from = from,
             to = to,
-            summary = summary
+            summary = refinedSummary
         )
         database.worklogDao().updateWork(newEntity)
     }

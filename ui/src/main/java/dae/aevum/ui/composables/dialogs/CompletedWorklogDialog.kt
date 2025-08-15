@@ -1,8 +1,12 @@
 package dae.aevum.ui.composables.dialogs
 
 import android.Manifest.permission.RECORD_AUDIO
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
@@ -10,15 +14,20 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import dae.aevum.common.R
@@ -33,6 +42,7 @@ fun CompletedWorklogDialog(
     worklogId: Long,
 ) {
     val micPermissionState = rememberPermissionState(RECORD_AUDIO)
+    val isStoppingWorklog by viewModel.isStoppingWorklog.collectAsState(initial = false)
 
     AlertDialog(
         modifier = modifier,
@@ -43,14 +53,25 @@ fun CompletedWorklogDialog(
             Text(text = stringResource(R.string.worklog_summary))
         },
         text = {
-            Text(stringResource(R.string.worklog_summary_details))
+            Column {
+                Text(stringResource(R.string.worklog_summary_details))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (isStoppingWorklog) {
+                    CircularProgressIndicator()
+                }
+            }
         },
         confirmButton = {
             Row {
+                val scope = rememberCoroutineScope()
+
                 Button(
+                    enabled = !isStoppingWorklog,
                     onClick = {
-                        viewModel.stopLogging("") {
-//                            navController.popBackStack()
+                        // Await stop before navigating, so the active worklog is finalized and summary persisted
+                        scope.launch {
+                            viewModel.stopLoggingForAwait(worklogId, "")
                             navController.navigate("worklogEditor/${worklogId}")
                         }
                     }) {
@@ -63,9 +84,12 @@ fun CompletedWorklogDialog(
 
                 Spacer(modifier = Modifier.width(8.dp))
                 if (micPermissionState.status.isGranted) {
+                    val scope2 = rememberCoroutineScope()
                     Button(
+                        enabled = !isStoppingWorklog,
                         onClick = {
-                            viewModel.stopLoggingAudioLog {
+                            scope2.launch {
+                                viewModel.stopLoggingAudioLogAwait()
                                 navController.popBackStack()
                             }
                         }) {
@@ -76,7 +100,10 @@ fun CompletedWorklogDialog(
                         Text(stringResource(R.string.speak_log))
                     }
                 } else {
-                    Button(onClick = { micPermissionState.launchPermissionRequest() }) {
+                    Button(
+                        enabled = !isStoppingWorklog,
+                        onClick = { micPermissionState.launchPermissionRequest() }
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Call,
                             contentDescription = stringResource(R.string.speak_log)
@@ -88,6 +115,7 @@ fun CompletedWorklogDialog(
         },
         dismissButton = {
             Button(
+                enabled = !isStoppingWorklog,
                 onClick = {
                     viewModel.deleteLog(worklogId) {
                         navController.popBackStack()

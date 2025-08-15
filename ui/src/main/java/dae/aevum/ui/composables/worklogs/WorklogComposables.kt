@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.MoreTime
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +38,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.hilt.navigation.compose.hiltViewModel
+import dae.aevum.ui.viewmodels.WorklogViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -352,65 +356,80 @@ fun TimeLabel(
 @Preview(widthDp = 320, showBackground = true)
 @Composable
 fun WorklogDetails(
-    modifier: Modifier = Modifier,
     @PreviewParameter(
         SampleWorklogUiModelProvider::class,
         1
     ) model: dae.aevum.ui.models.WorklogIssueUiModel,
+    modifier: Modifier = Modifier,
     updateWorklog: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
     splitWorklog: (Long) -> Unit = {}
 ) {
+    val viewModel: WorklogViewModel = hiltViewModel()
     var summary by remember {
         mutableStateOf(model.comment)
     }
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
+    val isUpdating by viewModel.isUpdatingWorklog.collectAsStateWithLifecycle()
+
+    if(isUpdating) {
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+    } else {
+        Column(
+            modifier = modifier
                 .fillMaxWidth()
         ) {
-            OutlinedButton(
-                modifier = modifier,
-                onClick = {
-                    updateWorklog(model.workId, model.from, model.to, summary)
-                }) {
-                Icon(
-                    imageVector = Icons.Default.Done,
-                    contentDescription = stringResource(R.string.save)
-                )
-                Text(text = stringResource(R.string.save))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                OutlinedButton(
+                    modifier = modifier,
+                    onClick = {
+                        updateWorklog(model.workId, model.from, model.to, summary)
+                    }) {
+                    Icon(
+                        imageVector = Icons.Default.Done,
+                        contentDescription = stringResource(R.string.save)
+                    )
+                    Text(text = stringResource(R.string.save))
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedButton(
+                    modifier = modifier,
+                    onClick = {
+                        splitWorklog(model.workId)
+                    }) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = stringResource(R.string.split)
+                    )
+                    Text(text = stringResource(R.string.split))
+                }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            OutlinedButton(
-                modifier = modifier,
-                onClick = {
-                    splitWorklog(model.workId)
-                }) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.split)
-                )
-                Text(text = stringResource(R.string.split))
-            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = stringResource(R.string.issue_id_x, model.issueId.value))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = model.issueTitle)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = stringResource(R.string.author_x, model.author))
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                value = summary,
+                onValueChange = { data ->
+                    summary = data
+                },
+                label = {
+                    Text(text = stringResource(R.string.summary))
+                }
+            )
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = stringResource(R.string.issue_id_x, model.issueId.value))
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = model.issueTitle)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = stringResource(R.string.author_x, model.author))
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(),
-            value = summary,
-            onValueChange = { data ->
-                summary = data
-            },
-            label = {
-                Text(text = stringResource(R.string.summary))
-            }
-        )
     }
 }
