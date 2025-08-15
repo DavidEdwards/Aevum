@@ -4,6 +4,11 @@
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- App-internal signature permission to guard exported receiver -->
+    <permission
+        android:name="dae.aevum.permission.WORKLOG_CHANGED"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="dae.aevum.permission.WORKLOG_CHANGED" />
 
     <application
         android:name=".App"
@@ -26,6 +31,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".widget.AevumAppWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/aevum_app_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.WorklogChangedReceiver"
+            android:exported="true"
+            android:permission="dae.aevum.permission.WORKLOG_CHANGED">
+            <intent-filter>
+                <action android:name="dae.aevum.action.WORKLOG_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

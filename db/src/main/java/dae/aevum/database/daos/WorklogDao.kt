@@ -30,6 +30,9 @@ interface WorklogDao {
     @Query("SELECT * FROM worklogs WHERE active = 1 LIMIT 1")
     suspend fun getActiveWorklog(): WorklogEntity?
 
+    @Query("SELECT * FROM worklogs WHERE active = 1 AND userId = :userId LIMIT 1")
+    suspend fun getActiveWorklogForUser(userId: Int): WorklogEntity?
+
     @Query("SELECT * FROM worklogs")
     suspend fun getAllWorks(): List<WorklogEntity>
 
@@ -64,6 +67,26 @@ interface WorklogDao {
     ): Flow<List<WorklogEntity>>
 
 
+    /**
+     * Returns all worklogs authored by the current Jira user that overlap with the provided range.
+     * Overlap condition uses: from <= end AND to >= start
+     */
+    @Query(
+        "SELECT * FROM worklogs " +
+            "WHERE userId = :userId " +
+            "AND jiraUserAccountId = :jiraUserAccountId " +
+            "AND `from` <= :end " +
+            "AND `to` >= :start " +
+            "ORDER BY `from` ASC"
+    )
+    fun getWorklogsFromMeBetween(
+        userId: Int,
+        start: Instant,
+        end: Instant,
+        jiraUserAccountId: String
+    ): Flow<List<WorklogEntity>>
+
+
     @Query("SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues WHERE worklogs.issueId = issues.id")
     fun getWorklogsAndIssues(): Flow<List<WorklogIssue>>
 
@@ -72,6 +95,20 @@ interface WorklogDao {
         userId: Int,
         dayStart: Instant,
         dayEnd: Instant,
+        jiraUserAccountId: String
+    ): Flow<List<WorklogIssue>>
+
+    @Query(
+        "SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues " +
+            "WHERE worklogs.issueId = issues.id AND worklogs.userId = :userId " +
+            "AND worklogs.jiraUserAccountId = :jiraUserAccountId " +
+            "AND ((worklogs.`from` BETWEEN :rangeStart AND :rangeEnd) OR (worklogs.`to` BETWEEN :rangeStart AND :rangeEnd)) " +
+            "ORDER BY worklogs.`from` DESC"
+    )
+    fun getWorklogIssuesInRangeFromMe(
+        userId: Int,
+        rangeStart: Instant,
+        rangeEnd: Instant,
         jiraUserAccountId: String
     ): Flow<List<WorklogIssue>>
 

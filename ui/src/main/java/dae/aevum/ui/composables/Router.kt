@@ -59,8 +59,11 @@ import dae.aevum.ui.composables.issues.IssueScreen
 import dae.aevum.ui.composables.users.UserListScreen
 import dae.aevum.ui.composables.worklogs.WorklogEditorScreen
 import dae.aevum.ui.composables.worklogs.WorklogListScreen
+import dae.aevum.ui.composables.worklogs.WorklogSummaryScreen
 import dae.aevum.ui.composables.worklogs.WorklogSplitterIssueScreen
 import dae.aevum.ui.composables.worklogs.WorklogSplitterTimeScreen
+import dae.aevum.ui.composables.worklogs.WorklogBarChartScreen
+import dae.aevum.ui.composables.worklogs.WorklogDayDetailsScreen
 import dae.aevum.ui.models.UserUiModel
 import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.ui.viewmodels.UserViewModel
@@ -107,6 +110,11 @@ sealed class Screen(
 
     data object UserNewDialog :
         Screen("users/new", R.string.add_user, Icons.Outlined.Add)
+
+    data object Summary : Screen("summary", R.string.summary_title, Icons.Outlined.Home)
+    data object SummaryBar : Screen("summary/bar", R.string.summary_title, Icons.Outlined.Home)
+    data object SummaryDetails : Screen("summary/details", R.string.summary_title, Icons.Outlined.Home)
+    data object SummaryDetailsForDay : Screen("summary/details/{day}", R.string.summary_title, Icons.Outlined.Home)
 }
 
 val screens = listOf(
@@ -114,6 +122,10 @@ val screens = listOf(
     Screen.Issues,
     Screen.IssueView,
     Screen.Worklogs,
+    Screen.Summary,
+    Screen.SummaryBar,
+    Screen.SummaryDetails,
+    Screen.SummaryDetailsForDay,
     Screen.WorklogsChangeId,
     Screen.WorklogEditor,
     Screen.WorklogNewDialog,
@@ -126,6 +138,7 @@ val bottomNav = listOf(
     Screen.Users,
     Screen.Issues,
     Screen.Worklogs,
+    Screen.Summary,
 )
 
 @Composable
@@ -418,6 +431,30 @@ private fun AppNavHost(
                         viewModel.decrementWorklogTime(workId, amount)
                     }
                 )
+            }
+            composable(Screen.Summary.route) {
+                val viewModel: WorklogViewModel = hiltViewModel()
+                WorklogSummaryScreen(
+                    viewModel = viewModel,
+                    onOpenBarChart = { navController.navigate(Screen.SummaryBar.route) },
+                    onOpenDayDetailsForDay = { day ->
+                        navController.navigate("summary/details/${day}")
+                    }
+                )
+            }
+            composable(Screen.SummaryBar.route) {
+                val viewModel: WorklogViewModel = hiltViewModel()
+                WorklogBarChartScreen(viewModel = viewModel)
+            }
+            composable(Screen.SummaryDetails.route) {
+                val viewModel: WorklogViewModel = hiltViewModel()
+                WorklogDayDetailsScreen(viewModel = viewModel)
+            }
+            composable(Screen.SummaryDetailsForDay.route) { backStackEntry ->
+                val viewModel: WorklogViewModel = hiltViewModel()
+                val dayArg = backStackEntry.arguments?.getString("day")
+                val day = dayArg?.let { java.time.LocalDate.parse(it) }
+                WorklogDayDetailsScreen(viewModel = viewModel, day = day)
             }
             composable(Screen.WorklogsChangeId.route) { backStackEntry ->
                 val viewModel: WorklogViewModel = hiltViewModel()

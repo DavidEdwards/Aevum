@@ -10,6 +10,8 @@ import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.JiraRepositoryImpl
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.domain.repositories.UserRepositoryImpl
+import dae.aevum.domain.repositories.WidgetRefresher
+import dae.aevum.widget.WidgetRefresherImpl
 import dae.aevum.network.AuthInterceptor
 import dae.aevum.network.Jira
 import dae.aevum.network.JiraService
@@ -113,5 +115,13 @@ class AevumModule {
         database: AppDatabase
     ): UserRepository {
         return UserRepositoryImpl(database)
+    }
+
+    @Provides
+    @Singleton
+    fun provideWidgetRefresher(
+        @ApplicationContext context: Context
+    ): WidgetRefresher {
+        return WidgetRefresherImpl(context)
     }
 }

@@ -52,4 +52,5 @@
     <string name="increment_worklog_time">Increment worklog time</string>
     <string name="decrement_worklog_time">Decrement worklog time</string>
     <string name="split_worklog">Split worklog</string>
+    <string name="summary_title">Summary</string>
 </resources>

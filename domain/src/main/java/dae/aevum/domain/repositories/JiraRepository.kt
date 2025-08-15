@@ -24,6 +24,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import javax.inject.Singleton
+import android.content.Intent
+import dae.aevum.utils.Intents
 
 interface JiraRepository {
     suspend fun getJiraAccountId(email: String): String
@@ -43,6 +45,7 @@ interface JiraRepository {
     fun getPendingWorklogs(): Flow<List<WorklogEntity>>
     fun getWorklogsToday(): Flow<List<WorklogEntity>>
     fun getWorklogsTodayFromMe(): Flow<List<WorklogIssue>>
+    fun getWorklogIssuesInLastTwoWeeks(): Flow<List<WorklogIssue>>
     suspend fun postPendingWorklogs(): List<WorklogEntity>
     suspend fun updateWorklog(worklogId: Long, from: Instant, to: Instant, summary: String)
     suspend fun incrementWorklogTime(worklogId: Long, amount: Long)
@@ -61,6 +64,8 @@ interface JiraRepository {
         user: String,
         token: String
     ): Boolean
+
+    suspend fun refreshWorklogsForLastTwoWeeks()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -225,15 +230,22 @@ class JiraRepositoryImpl(
     }
 
     override suspend fun stopLogging(summary: String) {
-        val worklog = database.worklogDao().getActiveWorklog()
+        val user = userRepository.getActiveUser() ?: return
+        val allWorks = database.worklogDao().getAllWorks()
+        val activeForUser = allWorks.filter { it.active && it.userId == user.id }
+        if (activeForUser.isEmpty()) return
 
-        val worklogCopy = worklog?.copy(
-            active = false,
-            to = Instant.now(),
-            summary = summary
-        ) ?: return
+        val now = Instant.now()
+        val mostRecent = activeForUser.maxByOrNull { it.from }
 
-        database.worklogDao().updateWork(worklogCopy)
+        activeForUser.forEach { entity ->
+            val updated = entity.copy(
+                active = false,
+                to = now,
+                summary = if (entity.workId == mostRecent?.workId) summary else entity.summary
+            )
+            database.worklogDao().updateWork(updated)
+        }
     }
 
     override suspend fun deleteWorklog(worklogId: Long) {
@@ -279,6 +291,20 @@ class JiraRepositoryImpl(
         }
     }
 
+    override fun getWorklogIssuesInLastTwoWeeks(): Flow<List<WorklogIssue>> {
+        return userRepository.flowActiveUser().flatMapLatest { user ->
+            user ?: return@flatMapLatest emptyFlow()
+            val end = LocalDate.now().atStartOfDay().plusHours(24).toInstant(ZoneOffset.UTC)
+            val start = LocalDate.now().minusDays(13).atStartOfDay().toInstant(ZoneOffset.UTC)
+            return@flatMapLatest database.worklogDao().getWorklogIssuesInRangeFromMe(
+                userId = user.id,
+                rangeStart = start,
+                rangeEnd = end,
+                jiraUserAccountId = user.jiraUserAccountId
+            )
+        }
+    }
+
     override suspend fun postPendingWorklogs(): List<WorklogEntity> = supervisorScope {
         val worklogs = getPendingWorklogs().firstOrNull()
             ?.filter { !it.active }
@@ -305,6 +331,29 @@ class JiraRepositoryImpl(
         }
 
         updatedWorklogs
+    }
+
+    override suspend fun refreshWorklogsForLastTwoWeeks() {
+        try {
+            val user = userRepository.getActiveUser() ?: return
+
+            val end = LocalDate.now().atStartOfDay().plusHours(24).toInstant(ZoneOffset.UTC)
+            val start = LocalDate.now().minusDays(13).atStartOfDay().toInstant(ZoneOffset.UTC)
+
+            val entities = withContext(Dispatchers.IO) {
+                jira.refreshWorklogsInRange(user, start, end)
+            }
+
+            if (entities.isNotEmpty()) {
+                val issueIds = entities.map { it.issueId }.distinct()
+                issueIds.forEach { issueId ->
+                    ensureIssueExists(user.id, issueId)
+                }
+                database.worklogDao().addWorks(entities)
+            }
+        } catch (e: Exception) {
+            Timber.e(e)
+        }
     }
 
     override suspend fun updateWorklog(

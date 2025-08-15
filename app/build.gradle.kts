@@ -123,6 +123,10 @@ dependencies {
     implementation(libs.hilt.nav)
     // endregion
 
+    // region Glance AppWidget
+    implementation(libs.glance.appwidget)
+    // endregion
+
     testImplementation(libs.junit)
 
     androidTestImplementation(libs.junit)

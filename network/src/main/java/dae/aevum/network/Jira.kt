@@ -20,6 +20,7 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.Instant
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -231,5 +232,82 @@ class Jira(private val jiraService: JiraService) {
         } catch (e: Exception) {
             false
         }
+    }
+
+    suspend fun refreshWorklogsInRange(
+        user: UserEntity,
+        start: Instant,
+        end: Instant
+    ): List<WorklogEntity> {
+        try {
+            val startDate = LocalDateTime.ofInstant(start, ZoneOffset.UTC).toLocalDate()
+            val endDate = LocalDateTime.ofInstant(end, ZoneOffset.UTC).toLocalDate()
+
+            // Search for issues with worklogs by current user in range
+            val issuesResponse = withContext(Dispatchers.IO) {
+                val jql = "worklogAuthor=currentUser() AND worklogDate >= ${startDate} AND worklogDate <= ${endDate}"
+                jiraService.searchIssues(
+                    SearchRequestRetro(
+                        jql = jql,
+                        fields = listOf("key")
+                    )
+                ).execute()
+            }
+
+            yield()
+            if (!issuesResponse.isSuccessful) {
+                Timber.e(issuesResponse.message())
+                return emptyList()
+            }
+
+            val body = issuesResponse.body() ?: return emptyList()
+            val issueKeys = body.issues.map { it.key }
+
+            val startedAfter = start.toEpochMilli()
+
+            val allWorklogs = mutableListOf<WorklogEntity>()
+            issueKeys.forEach { issueKey ->
+                val response = withContext(Dispatchers.IO) {
+                    jiraService.listWorklogsFor(issueKey, startedAfter).execute()
+                }
+                yield()
+                if (response.isSuccessful) {
+                    val listBody = response.body() ?: return@forEach
+                    val entities = listBody.worklogs.map { worklog ->
+                        val startedInstant = LocalDateTime.parse(
+                            worklog.started,
+                            Formatters.universalDateTimeZoneFormatter
+                        ).toInstant(ZoneOffset.UTC)
+
+                        WorklogEntity(
+                            workId = worklog.id.toLong(),
+                            issueId = IssueId(issueKey),
+                            userId = user.id,
+                            jiraUserAccountId = worklog.author.accountId,
+                            from = startedInstant,
+                            to = startedInstant.plusSeconds(worklog.timeSpentSeconds),
+                            author = worklog.author.displayName,
+                            summary = worklog.comment?.generateUnifiedString() ?: "No comment",
+                            pending = false,
+                            active = false
+                        )
+                    }
+
+                    // Keep only worklogs overlapping the [start, end] window
+                    val filtered = entities.filter { entity ->
+                        val overlaps = entity.from.isBefore(end) && entity.to.isAfter(start)
+                        overlaps
+                    }
+                    allWorklogs.addAll(filtered)
+                } else {
+                    Timber.e(response.message())
+                }
+            }
+
+            return allWorklogs
+        } catch (e: Exception) {
+            Timber.e(e)
+        }
+        return emptyList()
     }
 }

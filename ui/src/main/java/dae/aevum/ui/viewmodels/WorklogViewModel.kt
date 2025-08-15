@@ -1,5 +1,7 @@
 package dae.aevum.ui.viewmodels
 
+import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,15 +19,23 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import javax.inject.Inject
 import timber.log.Timber
+import dae.aevum.utils.Intents
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dae.aevum.domain.repositories.WidgetRefresher
+// removed unused imports
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class WorklogViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val jiraRepository: JiraRepository,
-    private val audioRepository: AudioRepository
+    private val audioRepository: AudioRepository,
+    @ApplicationContext private val appContext: Context,
+    private val widgetRefresher: WidgetRefresher
 ) : ViewModel() {
 
     val worklogBeingViewed = savedStateHandle.getStateFlow<Long?>(SAVED_VIEWED_WORKLOG_ID, null)
@@ -44,6 +54,11 @@ class WorklogViewModel @Inject constructor(
         }
 
     val worklogsTodayFromMe = jiraRepository.getWorklogsTodayFromMe()
+        .map { list ->
+            list.map { WorklogIssueUiModel.fromEntity(entity = it) }
+        }
+
+    val worklogIssuesLastTwoWeeks = jiraRepository.getWorklogIssuesInLastTwoWeeks()
         .map { list ->
             list.map { WorklogIssueUiModel.fromEntity(entity = it) }
         }
@@ -110,6 +125,7 @@ class WorklogViewModel @Inject constructor(
     fun stopLogging(summary: String, after: () -> Unit = {}) {
         viewModelScope.launch {
             jiraRepository.stopLogging(summary)
+            widgetRefresher.refreshAll()
             after()
         }
     }
@@ -118,6 +134,7 @@ class WorklogViewModel @Inject constructor(
         viewModelScope.launch {
             val summary = audioRepository.getAudioText()
             jiraRepository.stopLogging(summary)
+            widgetRefresher.refreshAll()
             after()
         }
     }
@@ -126,6 +143,13 @@ class WorklogViewModel @Inject constructor(
         return viewModelScope.launch {
             Timber.v("Refreshing worklogs for today from Jira...")
             jiraRepository.refreshWorklogsToday()
+        }
+    }
+
+    fun refreshWorklogsLastTwoWeeks(): Job {
+        return viewModelScope.launch {
+            Timber.v("Refreshing worklogs for last two weeks from Jira…")
+            jiraRepository.refreshWorklogsForLastTwoWeeks()
         }
     }
 

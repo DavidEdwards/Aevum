@@ -1,5 +1,7 @@
 package dae.aevum.ui.viewmodels
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -12,7 +14,10 @@ import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.ui.models.IssueUiModel
 import dae.aevum.ui.models.WorklogUiModel
 import dae.aevum.utils.IssueId
+import dae.aevum.utils.Intents
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dae.aevum.domain.repositories.WidgetRefresher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -30,7 +35,9 @@ import javax.inject.Inject
 class IssueViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val repository: JiraRepository,
-    userRepository: UserRepository
+    userRepository: UserRepository,
+    @ApplicationContext private val appContext: Context,
+    private val widgetRefresher: WidgetRefresher
 ) : ViewModel() {
 
     private val savedViewedIssueId =
@@ -92,6 +99,11 @@ class IssueViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             repository.startLogFor(issueId)
+            // Notify widget to refresh immediately (explicit to this app)
+            val intent = Intent(Intents.ACTION_WORKLOG_CHANGED).setPackage(appContext.packageName)
+            appContext.sendBroadcast(intent, "dae.aevum.permission.WORKLOG_CHANGED")
+            // Direct refresh via DI to avoid relying only on the broadcast
+            widgetRefresher.refreshAll()
         }
     }
 
