@@ -1,7 +1,6 @@
 package dae.aevum.ui.composables.reusable
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
@@ -46,7 +45,7 @@ fun <T> PullToRefreshList(
 
     Spacer(modifier = Modifier.height(8.dp))
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
     ) {
         Box(

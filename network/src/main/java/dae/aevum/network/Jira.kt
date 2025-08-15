@@ -21,6 +21,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.Instant
+import java.time.ZonedDateTime
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -125,10 +126,10 @@ class Jira(private val jiraService: JiraService) {
                 val body = response.body()
                 if (body != null) {
                     val entities = body.worklogs.map {
-                        val parsedTime = LocalDateTime.parse(
+                        val parsedTime = ZonedDateTime.parse(
                             it.started,
                             Formatters.universalDateTimeZoneFormatter
-                        ).toInstant(ZoneOffset.UTC)
+                        ).toInstant()
 
                         WorklogEntity(
                             workId = it.id.toLong(),
@@ -274,10 +275,10 @@ class Jira(private val jiraService: JiraService) {
                 if (response.isSuccessful) {
                     val listBody = response.body() ?: return@forEach
                     val entities = listBody.worklogs.map { worklog ->
-                        val startedInstant = LocalDateTime.parse(
+                        val startedInstant = ZonedDateTime.parse(
                             worklog.started,
                             Formatters.universalDateTimeZoneFormatter
-                        ).toInstant(ZoneOffset.UTC)
+                        ).toInstant()
 
                         WorklogEntity(
                             workId = worklog.id.toLong(),

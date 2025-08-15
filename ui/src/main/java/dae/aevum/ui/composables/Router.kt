@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Create
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Home
@@ -111,7 +112,7 @@ sealed class Screen(
     data object UserNewDialog :
         Screen("users/new", R.string.add_user, Icons.Outlined.Add)
 
-    data object Summary : Screen("summary", R.string.summary_title, Icons.Outlined.Home)
+    data object Summary : Screen("summary", R.string.summary_title, Icons.Outlined.BarChart)
     data object SummaryBar : Screen("summary/bar", R.string.summary_title, Icons.Outlined.Home)
     data object SummaryDetails : Screen("summary/details", R.string.summary_title, Icons.Outlined.Home)
     data object SummaryDetailsForDay : Screen("summary/details/{day}", R.string.summary_title, Icons.Outlined.Home)
@@ -137,8 +138,8 @@ val screens = listOf(
 val bottomNav = listOf(
     Screen.Users,
     Screen.Issues,
-    Screen.Worklogs,
     Screen.Summary,
+    Screen.Worklogs,
 )
 
 @Composable
