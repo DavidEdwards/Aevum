@@ -51,9 +51,16 @@ fun WorklogDayDetailsScreen(
     day: LocalDate? = null
 ) {
     val worklogs by viewModel.worklogIssuesLastTwoWeeks.collectAsState(initial = emptyList())
-    val grouped = worklogs.groupBy { it.from.atZone(ZoneId.systemDefault()).toLocalDate() }
-    val orderedDays =
-        if (day != null) listOf(day) else (0..13).map { LocalDate.now().minusDays(it.toLong()) }
+    WorklogDayDetailsContent(entries = worklogs, day = day)
+}
+
+@Composable
+private fun WorklogDayDetailsContent(
+    entries: List<WorklogIssueUiModel>,
+    day: LocalDate? = null
+) {
+    val grouped = entries.groupBy { it.from.atZone(ZoneId.systemDefault()).toLocalDate() }
+    val orderedDays = if (day != null) listOf(day) else (0..13).map { LocalDate.now().minusDays(it.toLong()) }
 
     LazyColumn(
         modifier = Modifier
@@ -62,8 +69,8 @@ fun WorklogDayDetailsScreen(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp)
     ) {
         items(orderedDays) { selectedDay ->
-            val entries = grouped[selectedDay].orEmpty()
-            val totalSeconds = entries.sumOf { Duration.between(it.from, it.to).seconds }
+            val entriesForDay = grouped[selectedDay].orEmpty()
+            val totalSeconds = entriesForDay.sumOf { Duration.between(it.from, it.to).seconds }
             val hours = totalSeconds / 3600.0
             val progress = (hours / 8f).toFloat().coerceIn(0f, 1f)
 
@@ -107,7 +114,7 @@ fun WorklogDayDetailsScreen(
             }
 
             // Worklog items
-            entries.forEachIndexed { index, e ->
+            entriesForDay.forEachIndexed { index, e ->
                 val duration = Duration.between(e.from, e.to)
                 val ehours = duration.seconds / 3600.0
                 val start = Formatters.universalTimeFormatter.format(e.from)
@@ -196,7 +203,7 @@ fun WorklogDayDetailsScreen(
                     }
                 }
 
-                if (index != entries.lastIndex) {
+                if (index != entriesForDay.lastIndex) {
                     Divider(modifier = Modifier.padding(vertical = 2.dp), color = Color.Transparent)
                 }
             }
@@ -207,6 +214,30 @@ fun WorklogDayDetailsScreen(
 @Preview
 @Composable
 private fun WorklogDayDetailsScreenPreview() {
-    // Preview will render empty state for the current day
-    WorklogDayDetailsScreen(day = LocalDate.now())
+    val now = java.time.Instant.now()
+    val sample = listOf(
+        WorklogIssueUiModel(
+            workId = 1,
+            issueId = dae.aevum.utils.IssueId("AAPP-1"),
+            author = "You",
+            from = now.minusSeconds(5 * 3600),
+            to = now.minusSeconds(3 * 3600),
+            comment = "Implemented feature X",
+            pending = false,
+            active = false,
+            issueTitle = "AAPP-1"
+        ),
+        WorklogIssueUiModel(
+            workId = 2,
+            issueId = dae.aevum.utils.IssueId("AAPP-2"),
+            author = "You",
+            from = now.minusSeconds(2 * 3600),
+            to = now.minusSeconds(1 * 3600),
+            comment = "Code review",
+            pending = false,
+            active = false,
+            issueTitle = "AAPP-2"
+        )
+    )
+    WorklogDayDetailsContent(entries = sample, day = LocalDate.now())
 }
