@@ -38,19 +38,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.hilt.navigation.compose.hiltViewModel
-import dae.aevum.ui.viewmodels.WorklogViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dae.aevum.common.R
 import dae.aevum.ui.composables.reusable.CircleButton
 import dae.aevum.ui.models.WorklogUiModel
 import dae.aevum.ui.preview.SampleWorklogUiModelProvider
+import dae.aevum.ui.viewmodels.WorklogViewModel
 import dae.aevum.utils.Formatters
 import dae.aevum.utils.human
 import kotlinx.coroutines.delay
@@ -128,11 +128,11 @@ fun WorklogCard(
                         )
                     }
 
-                    if(worklogUiModel.author.isNotBlank()) {
+                    if (worklogUiModel.author.isNotBlank()) {
                         Text(text = worklogUiModel.author)
                     }
 
-                    if(worklogUiModel.comment.isNotBlank()) {
+                    if (worklogUiModel.comment.isNotBlank()) {
                         Text(text = worklogUiModel.comment)
                     }
                 }
@@ -370,7 +370,7 @@ fun WorklogDetails(
     }
     val isUpdating by viewModel.isUpdatingWorklog.collectAsStateWithLifecycle()
 
-    if(isUpdating) {
+    if (isUpdating) {
         Box(
             modifier = modifier
                 .fillMaxWidth()

@@ -31,9 +31,9 @@ import dae.aevum.utils.IssueId
 @Preview(widthDp = 320, showBackground = true)
 @Composable
 fun StartStopLoggingButton(
-    modifier: Modifier = Modifier,
     @PreviewParameter(SampleIssueUiModelProvider::class, 1) issue: IssueId,
-    viewModel: dae.aevum.ui.viewmodels.IssueViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier,
+    viewModel: IssueViewModel = hiltViewModel(),
     startLogging: (IssueId) -> Unit = {},
     stopLogging: (Long) -> Unit = {},
 ) {
@@ -43,7 +43,6 @@ fun StartStopLoggingButton(
         OutlinedButton(
             modifier = modifier,
             onClick = {
-//            viewModel.startLogFor(issue.id)
                 startLogging(issue)
             }) {
             Icon(
@@ -56,7 +55,6 @@ fun StartStopLoggingButton(
         OutlinedButton(
             modifier = modifier,
             onClick = {
-//            viewModel.stopLogging("A summary")
                 stopLogging(activeIssue!!.worklog.workId)
             }) {
             Icon(

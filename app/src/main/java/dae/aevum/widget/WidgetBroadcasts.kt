@@ -3,14 +3,13 @@ package dae.aevum.widget
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import androidx.glance.appwidget.updateAll
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
-import androidx.datastore.preferences.core.intPreferencesKey
+import dae.aevum.utils.Intents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import dae.aevum.utils.Intents
 import timber.log.Timber
 
 class WorklogChangedReceiver : BroadcastReceiver() {

@@ -2,35 +2,39 @@ package dae.aevum.widget
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.glance.Button
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.background
-import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
-import androidx.glance.state.PreferencesGlanceStateDefinition
+import androidx.glance.background
+import androidx.glance.color.ColorProvider
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
+import androidx.glance.layout.width
+import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.color.ColorProvider
-import androidx.glance.appwidget.action.actionStartActivity
-import androidx.glance.Button
-import androidx.compose.ui.graphics.Color
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.intPreferencesKey
-import dagger.hilt.android.EntryPointAccessors
 import dae.aevum.MainActivity
 import dae.aevum.database.entities.ActiveIssueEntity
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -121,6 +125,7 @@ class AevumAppWidget : GlanceAppWidget() {
                         text = "Stop",
                         onClick = actionRunCallback<StopActiveTimerAction>()
                     )
+                    Spacer(modifier = GlanceModifier.width(8.dp))
                     Button(
                         text = "Open",
                         onClick = actionStartActivity(Intent(context, MainActivity::class.java))
@@ -133,6 +138,7 @@ class AevumAppWidget : GlanceAppWidget() {
                         text = "Start last",
                         onClick = actionRunCallback<StartLastIssueAction>()
                     )
+                    Spacer(modifier = GlanceModifier.width(8.dp))
                     Button(
                         text = "Open",
                         onClick = actionStartActivity(Intent(context, MainActivity::class.java))

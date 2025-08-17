@@ -1,16 +1,16 @@
 package dae.aevum.ml
 
 import dae.aevum.domain.repositories.Proofreader
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 import org.json.JSONArray
-import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import timber.log.Timber
+import java.util.concurrent.TimeUnit
 
 /**
  * Proofreader that sends the text to an Ollama server using the Chat API.
@@ -44,7 +44,7 @@ class LlamaProofreader(
                 JSONArray().put(
                     JSONObject()
                         .put("role", "user")
-                        .put("content",  systemPrompt + userContent)
+                        .put("content", systemPrompt + userContent)
                 )
             )
             .put("options", JSONObject().put("temperature", 0.2))
@@ -86,10 +86,16 @@ class LlamaProofreader(
                 val message = root.optJSONObject("message")
                 val content = message?.optString("content")?.trim()
                 Timber.v("LlamaProofreader: Extracted content: %s", content)
-                if (!content.isNullOrBlank()) return@withContext finalizeOutput(text, sanitizeOutput(content))
+                if (!content.isNullOrBlank()) return@withContext finalizeOutput(
+                    text,
+                    sanitizeOutput(content)
+                )
                 // Fallback to generate API shape if chat isn't available
                 val genResponse = root.optString("response").trim()
-                if (genResponse.isNotBlank()) return@withContext finalizeOutput(text, sanitizeOutput(genResponse))
+                if (genResponse.isNotBlank()) return@withContext finalizeOutput(
+                    text,
+                    sanitizeOutput(genResponse)
+                )
             }
         } catch (e: Throwable) {
             Timber.e(e, "LlamaProofreader: Error during proofreading, returning original text")
@@ -123,7 +129,10 @@ class LlamaProofreader(
     private fun sanitizeOutput(modelOutput: String): String {
         // Remove surrounding quotes if present and trim whitespace
         var out = modelOutput.trim()
-        if (out.length >= 2 && ((out.startsWith('"') && out.endsWith('"')) || (out.startsWith('\'') && out.endsWith('\'')))) {
+        if (out.length >= 2 && ((out.startsWith('"') && out.endsWith('"')) || (out.startsWith('\'') && out.endsWith(
+                '\''
+            )))
+        ) {
             out = out.substring(1, out.length - 1).trim()
         }
         // Normalize line endings and collapse excessive whitespace
@@ -147,11 +156,14 @@ class LlamaProofreader(
         }
 
         // Reject obviously chatty prefixes, bullets, or emojis
-        val chattyPrefixes = Regex("^(?i)(okay|sure|here|i'm|i am|i can|do you want|let me|great|awesome|sounds good)[^a-zA-Z0-9]*")
+        val chattyPrefixes =
+            Regex("^(?i)(okay|sure|here|i'm|i am|i can|do you want|let me|great|awesome|sounds good)[^a-zA-Z0-9]*")
         val hasBullets = trimmedCandidate.startsWith("-") || trimmedCandidate.startsWith("*")
-        val hasEmojis = trimmedCandidate.any { Character.getType(it) == Character.OTHER_SYMBOL.toInt() }
+        val hasEmojis =
+            trimmedCandidate.any { Character.getType(it) == Character.OTHER_SYMBOL.toInt() }
 
-        val shouldFallback = chattyPrefixes.containsMatchIn(trimmedCandidate) || hasBullets || hasEmojis
+        val shouldFallback =
+            chattyPrefixes.containsMatchIn(trimmedCandidate) || hasBullets || hasEmojis
         if (shouldFallback) {
             Timber.v("LlamaProofreader: Discarding candidate due to heuristics; using original")
             return trimmedOriginal

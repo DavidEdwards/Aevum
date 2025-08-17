@@ -37,13 +37,17 @@ fun WorklogBarChartScreen(
     val badColor = MaterialTheme.colorScheme.error
     val lineColor = Color.Gray
 
-    Column(Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
-        Text(text = "Last 14 days", style = MaterialTheme.typography.titleMedium)
-        Canvas(modifier = Modifier
+    Column(
+        Modifier
             .fillMaxSize()
-            .padding(top = 16.dp)) {
+            .padding(16.dp)
+    ) {
+        Text(text = "Last 14 days", style = MaterialTheme.typography.titleMedium)
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 16.dp)
+        ) {
             val barCount = values.size
             if (barCount == 0) return@Canvas
             val widthPerBar = size.width / (barCount * 1.5f)

@@ -8,8 +8,8 @@ import androidx.glance.appwidget.state.updateAppWidgetState
 import dae.aevum.domain.repositories.WidgetRefresher
 import dae.aevum.utils.Intents
 import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
 import timber.log.Timber
+import javax.inject.Inject
 
 class WidgetRefresherImpl @Inject constructor(
     @ApplicationContext private val appContext: Context
@@ -28,8 +28,13 @@ class WidgetRefresherImpl @Inject constructor(
             Timber.d("WidgetRefresherImpl: requesting update for id=%s", id)
             AevumAppWidget().update(appContext, id)
         }
+        // As a safety net, loop again to request updates for all instances
+        for (id in ids) {
+            AevumAppWidget().update(appContext, id)
+        }
         val intent = Intent(Intents.ACTION_WORKLOG_CHANGED)
             .setClass(appContext, WorklogChangedReceiver::class.java)
+            .setPackage(appContext.packageName)
         Timber.d("WidgetRefresherImpl: broadcasting worklog changed to receiver")
         appContext.sendBroadcast(intent, "dae.aevum.permission.WORKLOG_CHANGED")
     }

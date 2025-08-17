@@ -1,35 +1,30 @@
 package dae.aevum.ui.viewmodels
 
 import android.content.Context
-import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dae.aevum.domain.repositories.AudioRepository
 import dae.aevum.domain.repositories.JiraRepository
+import dae.aevum.domain.repositories.WidgetRefresher
 import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.models.WorklogUiModel
 import dae.aevum.utils.IssueId
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
-import javax.inject.Inject
 import timber.log.Timber
-import dae.aevum.utils.Intents
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dae.aevum.domain.repositories.WidgetRefresher
+import java.time.Instant
+import javax.inject.Inject
+
 // removed unused imports
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -85,6 +80,7 @@ class WorklogViewModel @Inject constructor(
             _isUpdatingWorklog.value = true
             try {
                 jiraRepository.updateWorklog(worklogId, from, to, summary)
+                widgetRefresher.refreshAll()
             } finally {
                 _isUpdatingWorklog.value = false
             }
@@ -96,6 +92,7 @@ class WorklogViewModel @Inject constructor(
         try {
             // Call directly; repository already does validation and proofreading
             jiraRepository.updateWorklog(worklogId, from, to, summary)
+            widgetRefresher.refreshAll()
         } finally {
             _isUpdatingWorklog.value = false
         }
@@ -116,6 +113,7 @@ class WorklogViewModel @Inject constructor(
     fun moveWorklogIssue(worklogId: Long, issueId: IssueId) {
         viewModelScope.launch {
             jiraRepository.moveWorklogIssue(worklogId, issueId)
+            widgetRefresher.refreshAll()
         }
     }
 
@@ -130,6 +128,8 @@ class WorklogViewModel @Inject constructor(
                 val success = jiraRepository.splitWorklog(worklogId, issueId, splitTime, withNewId)
                 if (!success) {
                     Timber.e("Split worklog operation returned false for worklogId: $worklogId")
+                } else {
+                    widgetRefresher.refreshAll()
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to split worklog $worklogId to issue ${issueId.value}")

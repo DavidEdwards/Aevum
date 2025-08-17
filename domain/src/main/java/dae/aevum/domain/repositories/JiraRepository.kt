@@ -24,8 +24,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import javax.inject.Singleton
-import android.content.Intent
-import dae.aevum.utils.Intents
 
 interface JiraRepository {
     suspend fun getJiraAccountId(email: String): String
@@ -157,7 +155,7 @@ class JiraRepositoryImpl(
                 issueIds.forEach { issueId ->
                     ensureIssueExists(user.id, issueId)
                 }
-                
+
                 database.worklogDao().addWorks(entities)
             }
         } catch (e: Exception) {
@@ -261,8 +259,9 @@ class JiraRepositoryImpl(
     override suspend fun stopLoggingFor(worklogId: Long, summary: String) {
         val user = userRepository.getActiveUser() ?: return
         val allWorks = database.worklogDao().getAllWorks()
-        val target = allWorks.firstOrNull { it.workId == worklogId && it.active && it.userId == user.id }
-            ?: return
+        val target =
+            allWorks.firstOrNull { it.workId == worklogId && it.active && it.userId == user.id }
+                ?: return
 
         val now = Instant.now()
         Timber.v("Proofreading: $summary")

@@ -24,7 +24,7 @@ interface WorklogDao {
     @Query("SELECT * FROM worklogs WHERE workId = :workId")
     suspend fun findWorkById(workId: Long): WorklogEntity?
 
-    @Query("SELECT * FROM worklogs WHERE issueId = :issueId ORDER BY `from` DESC LIMIT 50")
+    @Query("SELECT * FROM worklogs WHERE issueId = :issueId ORDER BY `from` DESC LIMIT 500")
     fun flowWorkByIssueId(issueId: String): Flow<List<WorklogEntity>>
 
     @Query("SELECT * FROM worklogs WHERE active = 1 LIMIT 1")
@@ -58,7 +58,7 @@ interface WorklogDao {
         dayEnd: Instant
     ): Flow<List<WorklogEntity>>
 
-    @Query("SELECT * FROM worklogs WHERE userId = :userId AND jiraUserAccountId = :jiraUserAccountId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC LIMIT 50")
+    @Query("SELECT * FROM worklogs WHERE userId = :userId AND jiraUserAccountId = :jiraUserAccountId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC LIMIT 500")
     fun getWorklogsTodayFromMe(
         userId: Int,
         dayStart: Instant,
@@ -73,11 +73,11 @@ interface WorklogDao {
      */
     @Query(
         "SELECT * FROM worklogs " +
-            "WHERE userId = :userId " +
-            "AND jiraUserAccountId = :jiraUserAccountId " +
-            "AND `from` <= :end " +
-            "AND `to` >= :start " +
-            "ORDER BY `from` ASC"
+                "WHERE userId = :userId " +
+                "AND jiraUserAccountId = :jiraUserAccountId " +
+                "AND `from` <= :end " +
+                "AND `to` >= :start " +
+                "ORDER BY `from` ASC"
     )
     fun getWorklogsFromMeBetween(
         userId: Int,
@@ -100,10 +100,10 @@ interface WorklogDao {
 
     @Query(
         "SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues " +
-            "WHERE worklogs.issueId = issues.id AND worklogs.userId = :userId " +
-            "AND worklogs.jiraUserAccountId = :jiraUserAccountId " +
-            "AND ((worklogs.`from` BETWEEN :rangeStart AND :rangeEnd) OR (worklogs.`to` BETWEEN :rangeStart AND :rangeEnd)) " +
-            "ORDER BY worklogs.`from` DESC"
+                "WHERE worklogs.issueId = issues.id AND worklogs.userId = :userId " +
+                "AND worklogs.jiraUserAccountId = :jiraUserAccountId " +
+                "AND ((worklogs.`from` BETWEEN :rangeStart AND :rangeEnd) OR (worklogs.`to` BETWEEN :rangeStart AND :rangeEnd)) " +
+                "ORDER BY worklogs.`from` DESC"
     )
     fun getWorklogIssuesInRangeFromMe(
         userId: Int,
@@ -136,7 +136,7 @@ interface WorklogDao {
             if (updatedFrom == null || newWorklog == null) {
                 throw IllegalStateException("Split operation failed - one or both worklogs not found after operation")
             }
-            
+
             return newId
         } catch (e: Exception) {
             // Log the error for debugging

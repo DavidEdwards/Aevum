@@ -16,8 +16,8 @@ data class WorklogIssueUiModel(
     val issueTitle: String
 ) {
     companion object {
-        fun fromEntity(entity: WorklogIssue): dae.aevum.ui.models.WorklogIssueUiModel {
-            return dae.aevum.ui.models.WorklogIssueUiModel(
+        fun fromEntity(entity: WorklogIssue): WorklogIssueUiModel {
+            return WorklogIssueUiModel(
                 workId = entity.workId,
                 issueId = entity.issueId,
                 author = entity.author,

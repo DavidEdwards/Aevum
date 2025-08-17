@@ -1,8 +1,6 @@
 package dae.aevum.ui.composables
 
 import android.content.res.Configuration
-import android.os.Handler
-import android.os.Looper
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -36,6 +34,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,7 +43,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.core.os.postDelayed
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -54,8 +52,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import dae.aevum.common.R
 import dae.aevum.ui.composables.dialogs.AddUserDialog
 import dae.aevum.ui.composables.dialogs.CompletedWorklogDialog
@@ -63,19 +59,19 @@ import dae.aevum.ui.composables.issues.IssueList
 import dae.aevum.ui.composables.issues.IssueListScreen
 import dae.aevum.ui.composables.issues.IssueScreen
 import dae.aevum.ui.composables.users.UserListScreen
-import dae.aevum.ui.composables.worklogs.WorklogEditorScreen
-import dae.aevum.ui.composables.worklogs.WorklogListScreen
-import dae.aevum.ui.composables.worklogs.WorklogSummaryScreen
-import dae.aevum.ui.composables.worklogs.WorklogSplitterIssueScreen
-import dae.aevum.ui.composables.worklogs.WorklogSplitterTimeScreen
 import dae.aevum.ui.composables.worklogs.WorklogBarChartScreen
 import dae.aevum.ui.composables.worklogs.WorklogDayDetailsScreen
+import dae.aevum.ui.composables.worklogs.WorklogEditorScreen
+import dae.aevum.ui.composables.worklogs.WorklogListScreen
+import dae.aevum.ui.composables.worklogs.WorklogSplitterIssueScreen
+import dae.aevum.ui.composables.worklogs.WorklogSplitterTimeScreen
+import dae.aevum.ui.composables.worklogs.WorklogSummaryScreen
 import dae.aevum.ui.models.UserUiModel
 import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.ui.viewmodels.UserViewModel
 import dae.aevum.ui.viewmodels.WorklogViewModel
 import dae.aevum.utils.IssueId
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 sealed class Screen(
@@ -120,8 +116,11 @@ sealed class Screen(
 
     data object Summary : Screen("summary", R.string.summary_title, Icons.Outlined.BarChart)
     data object SummaryBar : Screen("summary/bar", R.string.summary_title, Icons.Outlined.Home)
-    data object SummaryDetails : Screen("summary/details", R.string.summary_title, Icons.Outlined.Home)
-    data object SummaryDetailsForDay : Screen("summary/details/{day}", R.string.summary_title, Icons.Outlined.Home)
+    data object SummaryDetails :
+        Screen("summary/details", R.string.summary_title, Icons.Outlined.Home)
+
+    data object SummaryDetailsForDay :
+        Screen("summary/details/{day}", R.string.summary_title, Icons.Outlined.Home)
 }
 
 val screens = listOf(

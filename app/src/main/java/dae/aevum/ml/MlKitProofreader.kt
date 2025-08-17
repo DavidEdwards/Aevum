@@ -4,7 +4,6 @@ import android.content.Context
 import com.google.mlkit.genai.common.DownloadCallback
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.common.GenAiException
-import com.google.mlkit.genai.proofreading.Proofreader as MlProofreaderClient
 import com.google.mlkit.genai.proofreading.ProofreaderOptions
 import com.google.mlkit.genai.proofreading.Proofreading
 import com.google.mlkit.genai.proofreading.ProofreadingRequest
@@ -13,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import com.google.mlkit.genai.proofreading.Proofreader as MlProofreaderClient
 
 class MlKitProofreader(
     private val context: Context
@@ -37,14 +37,23 @@ class MlKitProofreader(
                 // Trigger download in background; inference can proceed and will wait as needed.
                 client.downloadFeature(object : DownloadCallback {
                     override fun onDownloadStarted(bytesToDownload: Long) {
-                        Timber.i("MlKitProofreader: Download started, %d bytes to download", bytesToDownload)
+                        Timber.i(
+                            "MlKitProofreader: Download started, %d bytes to download",
+                            bytesToDownload
+                        )
                     }
+
                     override fun onDownloadFailed(e: GenAiException) {
                         Timber.e("MlKitProofreader: Download failed with error: %s", e.message)
                     }
+
                     override fun onDownloadProgress(totalBytesDownloaded: Long) {
-                        Timber.i("MlKitProofreader: Download progress: %d bytes downloaded", totalBytesDownloaded)
+                        Timber.i(
+                            "MlKitProofreader: Download progress: %d bytes downloaded",
+                            totalBytesDownloaded
+                        )
                     }
+
                     override fun onDownloadCompleted() {
                         Timber.i("MlKitProofreader: Download completed successfully")
                     }

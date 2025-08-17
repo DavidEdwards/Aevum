@@ -1,11 +1,9 @@
 package dae.aevum.ui.composables.dialogs
 
 import android.Manifest.permission.RECORD_AUDIO
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -20,24 +18,24 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import dae.aevum.common.R
 import dae.aevum.ui.viewmodels.WorklogViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CompletedWorklogDialog(
     modifier: Modifier = Modifier,
-    viewModel: dae.aevum.ui.viewmodels.WorklogViewModel = hiltViewModel(),
+    viewModel: WorklogViewModel = hiltViewModel(),
     navController: NavController,
     worklogId: Long,
 ) {
@@ -84,11 +82,10 @@ fun CompletedWorklogDialog(
 
                 Spacer(modifier = Modifier.width(8.dp))
                 if (micPermissionState.status.isGranted) {
-                    val scope2 = rememberCoroutineScope()
                     Button(
                         enabled = !isStoppingWorklog,
                         onClick = {
-                            scope2.launch {
+                            scope.launch {
                                 viewModel.stopLoggingAudioLogAwait()
                                 navController.popBackStack()
                             }

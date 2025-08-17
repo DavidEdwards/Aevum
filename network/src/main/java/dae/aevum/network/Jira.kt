@@ -5,7 +5,6 @@ import dae.aevum.database.entities.UserEntity
 import dae.aevum.database.entities.WorklogEntity
 import dae.aevum.network.models.CommentNodeRetro
 import dae.aevum.network.models.SearchRequestRetro
-import dae.aevum.network.models.SearchRetro
 import dae.aevum.network.models.UserRetro
 import dae.aevum.network.models.WorklogAddRetro
 import dae.aevum.utils.Formatters
@@ -17,10 +16,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import timber.log.Timber
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.Instant
 import java.time.ZonedDateTime
 import kotlin.math.ceil
 import kotlin.math.max
@@ -246,7 +245,8 @@ class Jira(private val jiraService: JiraService) {
 
             // Search for issues with worklogs by current user in range
             val issuesResponse = withContext(Dispatchers.IO) {
-                val jql = "worklogAuthor=currentUser() AND worklogDate >= ${startDate} AND worklogDate <= ${endDate}"
+                val jql =
+                    "worklogAuthor=currentUser() AND worklogDate >= ${startDate} AND worklogDate <= ${endDate}"
                 jiraService.searchIssues(
                     SearchRequestRetro(
                         jql = jql,

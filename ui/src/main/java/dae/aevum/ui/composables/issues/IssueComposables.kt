@@ -33,9 +33,9 @@ import dae.aevum.ui.composables.reusable.PullToRefreshList
 import dae.aevum.ui.composables.reusable.StartStopLoggingButton
 import dae.aevum.ui.composables.worklogs.WorklogCard
 import dae.aevum.ui.models.IssueUiModel
+import dae.aevum.ui.preview.SampleIssueUiModelProvider
 import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.utils.IssueId
-import dae.aevum.ui.preview.SampleIssueUiModelProvider
 import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
