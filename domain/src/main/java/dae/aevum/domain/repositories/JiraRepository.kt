@@ -65,6 +65,8 @@ interface JiraRepository {
     ): Boolean
 
     suspend fun refreshWorklogsForLastTwoWeeks()
+    
+    suspend fun getLatestIssuesForProject(projectKey: String, maxResults: Int = 1000): List<IssueEntity>
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -560,5 +562,28 @@ class JiraRepositoryImpl(
         )
 
         return jira.testUser(instanceUrl, "Basic $authorizationToken")
+    }
+
+    override suspend fun getLatestIssuesForProject(projectKey: String, maxResults: Int): List<IssueEntity> {
+        return try {
+            val user = userRepository.getActiveUser() ?: return emptyList()
+            
+            val jql = "project = $projectKey ORDER BY created DESC"
+            val issues = jira.searchIssues(user.id, listOf(jql))
+            
+            // Filter to only return the requested number of results
+            val limitedIssues = issues.take(maxResults)
+            
+            // Save the issues to the database
+            if (limitedIssues.isNotEmpty()) {
+                database.issueDao().addIssues(limitedIssues)
+                Timber.v("Saved ${limitedIssues.size} issues for project $projectKey to database")
+            }
+            
+            limitedIssues
+        } catch (e: Exception) {
+            Timber.e(e, "Error getting latest issues for project $projectKey")
+            emptyList()
+        }
     }
 }

@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.State
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -72,6 +73,8 @@ class IssueViewModel @Inject constructor(
     val activeUser = userRepository.flowActiveUser()
 
     var searchTerm by mutableStateOf("")
+    private val _isLoadingProjectIssues = mutableStateOf(false)
+    val isLoadingProjectIssues: State<Boolean> = _isLoadingProjectIssues
 
     val filteredIssues = issues.combine(snapshotFlow { searchTerm }) { issues, term ->
         issues.filter {
@@ -134,6 +137,21 @@ class IssueViewModel @Inject constructor(
     fun toggleIssuePin(issueId: IssueId) {
         viewModelScope.launch {
             repository.toggleIssuePin(issueId)
+        }
+    }
+
+    fun getLatestIssuesForProject(projectKey: String, maxResults: Int = 10) = viewModelScope.launch {
+        try {
+            _isLoadingProjectIssues.value = true
+            val issues = repository.getLatestIssuesForProject(projectKey, maxResults)
+            Timber.v("Found and saved ${issues.size} latest issues for project $projectKey")
+            issues.forEach { issue ->
+                Timber.v("Issue: ${issue.id.value} - ${issue.title}")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Error getting latest issues for project $projectKey")
+        } finally {
+            _isLoadingProjectIssues.value = false
         }
     }
 
