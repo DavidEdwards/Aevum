@@ -1,9 +1,5 @@
 package dae.aevum.network.models
 
-data class SearchRequestRetro(
-    val jql: String,
-    val fields: List<String> = listOf("id", "summary")
-)
 
 data class SearchRetro(
     val startAt: Int,

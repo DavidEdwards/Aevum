@@ -1,6 +1,5 @@
 package dae.aevum.network
 
-import dae.aevum.network.models.SearchRequestRetro
 import dae.aevum.network.models.SearchRetro
 import dae.aevum.network.models.UserResponseRetro
 import dae.aevum.network.models.WorklogAddRetro
@@ -17,30 +16,37 @@ import retrofit2.http.Query
 
 interface JiraService {
     @GET("user/picker")
-    @Headers("Content-Type: application/json")
+    @Headers("Content-Type: application/json", "Accept: application/json")
     fun getUser(@Query("query") query: String): Call<UserResponseRetro?>
 
-    @POST("search")
-    @Headers("Content-Type: application/json")
-    fun searchIssues(@Body body: SearchRequestRetro): Call<SearchRetro?>
+    @GET("search/jql")
+    @Headers("Content-Type: application/json", "Accept: application/json")
+    fun searchIssues(
+        @Query("jql") jql: String,
+        @Query("fields") fields: String? = null,
+        @Query("maxResults") maxResults: Int = 100,
+        @Query("startAt") startAt: Int = 0
+    ): Call<SearchRetro?>
 
     @GET("issue/{issueId}/worklog")
-    @Headers("Content-Type: application/json")
+    @Headers("Content-Type: application/json", "Accept: application/json")
     fun listWorklogsFor(
         @Path("issueId") issueId: String,
         @Query("startedAfter") startedAfter: Long
     ): Call<WorklogListRetro?>
 
     @POST("issue/{issueId}/worklog")
-    @Headers("Content-Type: application/json")
+    @Headers("Content-Type: application/json", "Accept: application/json")
     fun addWorklog(
         @Path("issueId") issueId: String,
         @Body body: WorklogAddRetro
     ): Call<ResponseBody>
 
-    // https://baseurl/rest/api/3/search?maxResults=1&jql=worklogAuthor%3DcurrentUser()
+    @GET("search/jql")
+    @Headers("Content-Type: application/json", "Accept: application/json")
     fun testUser(
-        @Path(value = "fullUrl", encoded = true) instanceUrl: String,
+        @Query("jql") jql: String = "worklogAuthor = currentUser()",
+        @Query("maxResults") maxResults: Int = 1,
         @Header("Authorization") token: String
     ): Call<ResponseBody>
 

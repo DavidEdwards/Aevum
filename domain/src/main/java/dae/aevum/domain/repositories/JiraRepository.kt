@@ -100,9 +100,9 @@ class JiraRepositoryImpl(
             yield()
 
             val searches = listOf(
-                "issuekey in issueHistory() ORDER BY lastViewed DESC",
-                "worklogAuthor=currentUser() ORDER BY lastViewed DESC",
-                "assignee=currentUser() ORDER BY lastViewed DESC"
+                "key in issueHistory() ORDER BY lastViewed DESC",
+                "worklogAuthor = currentUser() ORDER BY lastViewed DESC",
+                "assignee = currentUser() ORDER BY lastViewed DESC"
             )
 
             val entityList = jira.searchIssues(user.id, searches)

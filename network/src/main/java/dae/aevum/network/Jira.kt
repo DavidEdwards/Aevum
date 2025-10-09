@@ -4,7 +4,6 @@ import dae.aevum.database.entities.IssueEntity
 import dae.aevum.database.entities.UserEntity
 import dae.aevum.database.entities.WorklogEntity
 import dae.aevum.network.models.CommentNodeRetro
-import dae.aevum.network.models.SearchRequestRetro
 import dae.aevum.network.models.UserRetro
 import dae.aevum.network.models.WorklogAddRetro
 import dae.aevum.utils.Formatters
@@ -38,7 +37,12 @@ class Jira(private val jiraService: JiraService) {
     suspend fun searchIssues(userId: Int, searches: List<String>) = withContext(Dispatchers.IO) {
         val asyncSearches = searches.map { jql ->
             async(Dispatchers.IO) {
-                jiraService.searchIssues(SearchRequestRetro(jql)).execute()
+                jiraService.searchIssues(
+                    jql = jql,
+                    fields = "id,summary,key",
+                    maxResults = 1000,
+                    startAt = 0
+                ).execute()
             }
         }
         val asyncResults = asyncSearches.awaitAll()
@@ -78,10 +82,10 @@ class Jira(private val jiraService: JiraService) {
         try {
             val response = withContext(Dispatchers.IO) {
                 jiraService.searchIssues(
-                    SearchRequestRetro(
-                        jql = "issuekey = $issueKey",
-                        fields = listOf("summary")
-                    )
+                    jql = "key = $issueKey",
+                    fields = "summary,key",
+                    maxResults = 1,
+                    startAt = 0
                 ).execute()
             }
 
@@ -162,10 +166,10 @@ class Jira(private val jiraService: JiraService) {
             // Get all issues for the user
             val issues = withContext(Dispatchers.IO) {
                 val call = jiraService.searchIssues(
-                    SearchRequestRetro(
-                        jql = "worklogAuthor=currentUser() AND worklogDate >= startOfDay() AND worklogDate <= endOfDay()",
-                        fields = listOf("key")
-                    )
+                    jql = "worklogAuthor = currentUser() AND worklogDate >= startOfDay() AND worklogDate <= endOfDay()",
+                    fields = "key",
+                    maxResults = 1000,
+                    startAt = 0
                 )
                 call.execute()
             }
@@ -222,10 +226,11 @@ class Jira(private val jiraService: JiraService) {
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     suspend fun testUser(instanceUrl: String, authHeader: String): Boolean {
         return try {
             val response = withContext(Dispatchers.IO) {
-                jiraService.testUser(instanceUrl, authHeader).execute()
+                jiraService.testUser(token = authHeader).execute()
             }
 
             response.isSuccessful
@@ -246,12 +251,12 @@ class Jira(private val jiraService: JiraService) {
             // Search for issues with worklogs by current user in range
             val issuesResponse = withContext(Dispatchers.IO) {
                 val jql =
-                    "worklogAuthor=currentUser() AND worklogDate >= ${startDate} AND worklogDate <= ${endDate}"
+                    "worklogAuthor = currentUser() AND worklogDate >= ${startDate} AND worklogDate <= ${endDate}"
                 jiraService.searchIssues(
-                    SearchRequestRetro(
-                        jql = jql,
-                        fields = listOf("key")
-                    )
+                    jql = jql,
+                    fields = "key",
+                    maxResults = 1000,
+                    startAt = 0
                 ).execute()
             }
 
