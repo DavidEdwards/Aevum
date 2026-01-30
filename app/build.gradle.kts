@@ -1,13 +1,8 @@
-@file:Suppress("UnstableApiUsage")
-
-import com.android.build.api.dsl.ManagedVirtualDevice
-
 plugins {
     id("aevum.app")
     id("aevum.compose")
 
     alias(libs.plugins.ksp)
-    alias(libs.plugins.kapt)
     alias(libs.plugins.hilt)
 }
 
@@ -64,29 +59,25 @@ android {
         unitTests.isIncludeAndroidResources = true
         execution = "ANDROIDX_TEST_ORCHESTRATOR"
         managedDevices {
-            devices {
-                create<ManagedVirtualDevice>("pixel5") {
+            localDevices {
+                create("pixel5") {
                     device = "Pixel 5"
                     apiLevel = 31
                 }
-                create<ManagedVirtualDevice>("nexus7") {
+                create("nexus7") {
                     device = "Nexus 7"
                     apiLevel = 31
                 }
-                create<ManagedVirtualDevice>("nexus10") {
+                create("nexus10") {
                     device = "Nexus 10"
                     apiLevel = 31
                 }
             }
             groups.create("screenshotDevices") {
-                targetDevices.addAll(devices.toList())
+                targetDevices.addAll(localDevices)
             }
         }
     }
-}
-
-kapt {
-    correctErrorTypes = true
 }
 
 dependencies {
@@ -114,17 +105,19 @@ dependencies {
     implementation(libs.room.ktx)
     implementation(libs.room.paging)
     ksp(libs.room.compiler)
-    kapt(libs.core.ktx)
-//    ksp(libs.core.ktx)
 
     // region Dependency Injection
     implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
+    ksp(libs.hilt.compiler)
     implementation(libs.hilt.nav)
     // endregion
 
     // region Glance AppWidget
     implementation(libs.glance.appwidget)
+    // endregion
+
+    // region SplashScreen
+    implementation(libs.splashscreen)
     // endregion
 
     testImplementation(libs.junit)
@@ -134,7 +127,7 @@ dependencies {
     androidTestImplementation(libs.ui.test.junit4)
 
     // ML Kit GenAI Proofreading
-    implementation("com.google.mlkit:genai-proofreading:1.0.0-beta1")
+    implementation(libs.genai.proofreading)
 
     // For ListenableFuture await
     implementation(libs.coroutines.guava)

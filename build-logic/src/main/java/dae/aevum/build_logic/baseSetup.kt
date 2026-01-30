@@ -1,12 +1,15 @@
 package dae.aevum.build_logic
 
-import com.android.build.gradle.BaseExtension
+import com.android.build.api.dsl.ApplicationExtension
+import com.android.build.api.dsl.LibraryExtension
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalog
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
@@ -20,7 +23,7 @@ fun Project.baseSetup() {
     println("Found libs: $libs")
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
-            languageVersion.set(KotlinVersion.KOTLIN_1_9)
+            languageVersion.set(KotlinVersion.KOTLIN_2_0)
             jvmTarget.set(JvmTarget.JVM_17)
             optIn.addAll(
                 listOf(
@@ -41,34 +44,70 @@ fun Project.baseSetup() {
             languageVersion.set(JavaLanguageVersion.of(17))
         }
     }
+    // Allow modules without tests to pass (Gradle 9+ behavior)
+    tasks.withType<Test>().configureEach {
+        failOnNoDiscoveredTests.set(false)
+    }
     println("Configuring Android base extension")
-    extensions.configure<BaseExtension> {
-        namespace = "dae.aevum." + path.removePrefix(":").replace(':', '.')
-        println("Configuring $namespace")
+
+    val minSdkVersion = libs.findVersion("sdk-min").get().requiredVersion.toInt()
+    val compileSdkVersion = libs.findVersion("sdk-compile").get().requiredVersion.toInt()
+    val namespace = "dae.aevum." + path.removePrefix(":").replace(':', '.')
+    println("Configuring $namespace")
+
+    extensions.findByType<ApplicationExtension>()?.apply {
+        this.namespace = namespace
+        this.compileSdk = compileSdkVersion
         compileOptions {
             isCoreLibraryDesugaringEnabled = true
             sourceCompatibility = JavaVersion.VERSION_17
             targetCompatibility = JavaVersion.VERSION_17
         }
         defaultConfig {
-            multiDexEnabled = true
-            minSdk = libs.findVersion("sdk-min").get().requiredVersion.toInt()
-            targetSdk = libs.findVersion("sdk-target").get().requiredVersion.toInt()
+            minSdk = minSdkVersion
         }
-        compileSdkVersion(libs.findVersion("sdk-compile").get().requiredVersion.toInt())
         testOptions {
             unitTests.isReturnDefaultValues = true
             animationsDisabled = true
             unitTests.isIncludeAndroidResources = true
         }
+        packaging {
+            resources.pickFirsts.addAll(
+                listOf(
+                    "META-INF/atomicfu.kotlin_module",
+                    "META-INF/core.kotlin_module",
+                    "META-INF/{AL2.0,LGPL2.1}",
+                    "META-INF/gradle/incremental.annotation.processors",
+                )
+            )
+        }
+    }
 
-        packagingOptions {
-            with(resources.pickFirsts) {
-                add("META-INF/atomicfu.kotlin_module")
-                add("META-INF/core.kotlin_module")
-                add("META-INF/{AL2.0,LGPL2.1}")
-                add("META-INF/gradle/incremental.annotation.processors")
-            }
+    extensions.findByType<LibraryExtension>()?.apply {
+        this.namespace = namespace
+        this.compileSdk = compileSdkVersion
+        compileOptions {
+            isCoreLibraryDesugaringEnabled = true
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
+        defaultConfig {
+            minSdk = minSdkVersion
+        }
+        testOptions {
+            unitTests.isReturnDefaultValues = true
+            animationsDisabled = true
+            unitTests.isIncludeAndroidResources = true
+        }
+        packaging {
+            resources.pickFirsts.addAll(
+                listOf(
+                    "META-INF/atomicfu.kotlin_module",
+                    "META-INF/core.kotlin_module",
+                    "META-INF/{AL2.0,LGPL2.1}",
+                    "META-INF/gradle/incremental.annotation.processors",
+                )
+            )
         }
     }
     println("Adding dependencies")

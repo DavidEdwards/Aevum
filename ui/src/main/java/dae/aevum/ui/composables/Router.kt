@@ -67,6 +67,7 @@ import dae.aevum.ui.composables.worklogs.WorklogSplitterIssueScreen
 import dae.aevum.ui.composables.worklogs.WorklogSplitterTimeScreen
 import dae.aevum.ui.composables.worklogs.WorklogSummaryScreen
 import dae.aevum.ui.models.UserUiModel
+import dae.aevum.ui.viewmodels.ActiveUserState
 import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.ui.viewmodels.UserViewModel
 import dae.aevum.ui.viewmodels.WorklogViewModel
@@ -148,7 +149,7 @@ val bottomNav = listOf(
 )
 
 @Composable
-fun Router() {
+fun Router(onReady: () -> Unit = {}) {
     val navController = rememberNavController()
 
     var currentScreen by remember {
@@ -164,16 +165,31 @@ fun Router() {
         }
     }
 
-    AppScaffold(navController = navController, currentScreen = currentScreen)
+    AppScaffold(navController = navController, currentScreen = currentScreen, onReady = onReady)
 }
 
 @Composable
 fun AppScaffold(
     navController: NavHostController,
     currentScreen: Screen,
+    onReady: () -> Unit = {},
     userViewModel: UserViewModel = hiltViewModel()
 ) {
-    val activeUser by userViewModel.activeUser.collectAsState(initial = null)
+    val activeUserState by userViewModel.activeUserState.collectAsState()
+
+    val isLoading = activeUserState is ActiveUserState.Loading
+    val activeUser = (activeUserState as? ActiveUserState.Loaded)?.user
+
+    LaunchedEffect(isLoading) {
+        if (!isLoading) {
+            onReady()
+        }
+    }
+
+    if (isLoading) {
+        return
+    }
+
     val startDestination = if (activeUser == null) {
         Screen.Users.route
     } else {

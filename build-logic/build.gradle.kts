@@ -12,7 +12,6 @@ repositories {
 dependencies {
     implementation(libs.kotlin.pluginForGradle)
     implementation(libs.android.gradlePlugin)
-    implementation(libs.kotlin.compilerEmbeddable)
     implementation(libs.ktlint.gradlePlugin)
 }
 

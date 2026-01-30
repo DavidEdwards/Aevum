@@ -9,7 +9,7 @@ class LibraryPlugin : Plugin<Project> {
         target.pluginManager.run {
             apply("aevum.ktlint")
             apply("com.android.library")
-            apply("kotlin-android")
+            // kotlin-android is bundled with AGP 9+
             withPlugin("com.android.library") {
                 target.baseSetup()
                 target.tasks.register("aevumUnitTest") {

@@ -10,10 +10,17 @@ import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.ui.models.UserUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
+
+sealed class ActiveUserState {
+    data object Loading : ActiveUserState()
+    data class Loaded(val user: UserUiModel?) : ActiveUserState()
+}
 
 @HiltViewModel
 class UserViewModel @Inject constructor(
@@ -45,6 +52,16 @@ class UserViewModel @Inject constructor(
 
     val activeUser = userRepository.flowActiveUser()
         .map { entity -> entity?.let { UserUiModel.fromEntity(entity = it) } }
+
+    val activeUserState = userRepository.flowActiveUser()
+        .map { entity ->
+            ActiveUserState.Loaded(entity?.let { UserUiModel.fromEntity(entity = it) })
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = ActiveUserState.Loading
+        )
 
     var loading by mutableStateOf(false)
 

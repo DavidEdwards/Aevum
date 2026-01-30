@@ -1,7 +1,6 @@
 plugins {
     id("aevum.library")
     alias(libs.plugins.ksp)
-    alias(libs.plugins.kapt)
     alias(libs.plugins.hilt)
 }
 
@@ -9,10 +8,6 @@ ksp {
     arg("room.generateKotlin", "true")
     arg("room.schemaLocation", "$projectDir/schemas")
     allWarningsAsErrors = true
-}
-
-kapt {
-    correctErrorTypes = true
 }
 
 android {
@@ -33,12 +28,10 @@ dependencies {
     implementation(projects.common)
 
     implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
+    ksp(libs.hilt.compiler)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     implementation(libs.room.paging)
     ksp(libs.room.compiler)
-    kapt(libs.core.ktx)
-//    ksp(libs.core.ktx)
 }

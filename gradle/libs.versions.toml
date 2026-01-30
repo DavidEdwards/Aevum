@@ -1,4 +1,5 @@
 [versions]
+genaiProofreading = "1.0.0-beta1"
 versionCode = "2"
 versionName = "1.0.3"
 
@@ -7,8 +8,8 @@ sdk-min = "26"
 sdk-target = "35"
 
 leakcanary = "2.14"
-agp = "8.10.1"
-kotlin = "2.1.21"
+agp = "9.0.0"
+kotlin = "2.2.10"
 core-ktx = "1.16.0"
 junit = "4.13.2"
 androidx-test-ext-junit = "1.2.1"
@@ -24,11 +25,12 @@ okhttp = "4.12.0"
 retrofit = "3.0.0"
 hilt = "2.56.2"
 hilt-nav = "1.2.0"
-ksp = "2.1.21-2.0.1"
+ksp = "2.3.2"
 accompanist-permissions = "0.37.3"
 appcompat = "1.7.1"
 material = "1.12.0"
 glance = "1.1.0"
+splashscreen = "1.0.1"
 
 ktlint-core = "1.6.0"
 ktlint-gradlePlugin = "0.10.0"
@@ -40,6 +42,7 @@ coil = "2.7.0"
 javax-inject = "1"
 
 [libraries]
+genai-proofreading = { module = "com.google.mlkit:genai-proofreading", version.ref = "genaiProofreading" }
 kotlin-pluginForGradle = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlin-compilerEmbeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin" }
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
@@ -75,6 +78,7 @@ accompanist-permissions = { group = "com.google.accompanist", name = "accompanis
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 
 ktlint-core = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlint-core" }
 ktlint-gradlePlugin = { module = "io.github.usefulness:ktlint-gradle-plugin", version.ref = "ktlint-gradlePlugin" }
