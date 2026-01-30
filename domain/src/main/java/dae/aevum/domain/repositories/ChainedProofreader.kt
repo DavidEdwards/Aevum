@@ -5,7 +5,7 @@ package dae.aevum.domain.repositories
  * Stops early if any proofreader throws, returning the last successful text.
  */
 class ChainedProofreader(
-    private val proofreaders: List<Proofreader>
+    private val proofreaders: List<Proofreader>,
 ) : Proofreader {
     override suspend fun proofread(text: String): String {
         var current = text

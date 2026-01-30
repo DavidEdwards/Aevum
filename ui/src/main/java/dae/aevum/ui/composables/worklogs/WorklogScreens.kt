@@ -54,14 +54,14 @@ fun WorklogListScreen(
 ) {
     val worklogs by viewModel.pendingWorklogs.collectAsState(initial = emptyList())
 
-
     PullToRefreshList(
-        modifier = modifier
-            .padding(horizontal = 16.dp),
+        modifier =
+            modifier
+                .padding(horizontal = 16.dp),
         result = worklogs,
         refresh = {
             viewModel.refreshWorklogsToday()
-        }
+        },
     ) { models ->
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -71,7 +71,7 @@ fun WorklogListScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = stringResource(R.string.no_pending_worklogs),
-                style = MaterialTheme.typography.bodyLarge
+                style = MaterialTheme.typography.bodyLarge,
             )
         } else {
             models.forEach { model ->
@@ -86,7 +86,7 @@ fun WorklogListScreen(
                     changeIssueId = changeIssueId,
                     splitWorklog = splitWorklog,
                     incrementWorklogTime = incrementWorklogTime,
-                    decrementWorklogTime = decrementWorklogTime
+                    decrementWorklogTime = decrementWorklogTime,
                 )
             }
         }
@@ -96,17 +96,17 @@ fun WorklogListScreen(
 @Composable
 fun AlreadyLoggedTodayList(
     modifier: Modifier = Modifier,
-    viewModel: WorklogViewModel = hiltViewModel()
+    viewModel: WorklogViewModel = hiltViewModel(),
 ) {
     val worklogsToday by viewModel.worklogsTodayFromMe.collectAsState(initial = emptyList())
 
     if (worklogsToday.isNotEmpty()) {
         Column(
-            modifier = modifier
+            modifier = modifier,
         ) {
             Text(
                 text = stringResource(R.string.worklogs_posted_today_already),
-                style = MaterialTheme.typography.bodyLarge
+                style = MaterialTheme.typography.bodyLarge,
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -114,24 +114,25 @@ fun AlreadyLoggedTodayList(
                 val duration = Duration.between(model.from, model.to).human()
                 Text(
                     text = "${model.issueId.value}: $duration",
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 Text(
                     text = "  ${model.issueTitle}",
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.secondary,
                 )
             }
 
             val totalDuration =
-                worklogsToday.map { model -> Duration.between(model.from, model.to) }
+                worklogsToday
+                    .map { model -> Duration.between(model.from, model.to) }
                     .fold(Duration.ZERO) { d1: Duration, d2: Duration ->
                         d1.plus(d2)
                     }.human()
             Text(
                 text = "Total: $totalDuration",
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -145,7 +146,7 @@ fun WorklogEditorScreen(
     viewModel: WorklogViewModel = hiltViewModel(),
     worklogId: Long?,
     updateWorklog: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
-    splitWorklog: (Long) -> Unit = {}
+    splitWorklog: (Long) -> Unit = {},
 ) {
     viewModel.setViewedWorklogId(worklogId)
     val model by viewModel.worklogBeingViewed.collectAsState(initial = null)
@@ -155,15 +156,16 @@ fun WorklogEditorScreen(
     }
 
     Column(
-        modifier = modifier
-            .padding(16.dp)
-            .fillMaxSize()
+        modifier =
+            modifier
+                .padding(16.dp)
+                .fillMaxSize(),
     ) {
         WorklogDetails(
             modifier = Modifier,
             model = model!!,
             updateWorklog = updateWorklog,
-            splitWorklog = splitWorklog
+            splitWorklog = splitWorklog,
         )
     }
 }
@@ -186,7 +188,7 @@ fun WorklogSplitterIssueScreen(
         modifier = modifier,
         onIssueSelected = { issueId ->
             issueSelected(issueId)
-        }
+        },
     )
 }
 
@@ -224,9 +226,7 @@ fun WorklogSplitterTimeScreen(
         mutableStateOf("00:00")
     }
 
-    fun getMiddle(): Instant {
-        return Instant.from(start).plus(position.toLong(), ChronoUnit.MINUTES)
-    }
+    fun getMiddle(): Instant = Instant.from(start).plus(position.toLong(), ChronoUnit.MINUTES)
 
     fun recalculateWithPosition() {
         val middle = getMiddle()
@@ -240,26 +240,29 @@ fun WorklogSplitterTimeScreen(
     recalculateWithPosition()
 
     Column(
-        modifier = modifier
-            .padding(16.dp)
-            .fillMaxSize()
-            .verticalScroll(state = rememberScrollState())
+        modifier =
+            modifier
+                .padding(16.dp)
+                .fillMaxSize()
+                .verticalScroll(state = rememberScrollState()),
     ) {
         Text(
-            text = stringResource(
-                R.string.splitting_from_to_issue,
-                originalIssueId.value,
-                issueId.value
-            )
+            text =
+                stringResource(
+                    R.string.splitting_from_to_issue,
+                    originalIssueId.value,
+                    issueId.value,
+                ),
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = stringResource(R.string.choose_time))
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier =
+                Modifier
+                    .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(text = stringResource(R.string.time_start, startLabel))
             Text(text = stringResource(R.string.time_old_duration, middleLabel))
@@ -272,7 +275,7 @@ fun WorklogSplitterTimeScreen(
                 position = it
                 recalculateWithPosition()
             },
-            valueRange = 1f..totalMinutes.toFloat()
+            valueRange = 1f..totalMinutes.toFloat(),
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -281,10 +284,11 @@ fun WorklogSplitterTimeScreen(
             modifier = modifier,
             onClick = {
                 splitWorklog(worklogId, issueId, getMiddle())
-            }) {
+            },
+        ) {
             Icon(
                 imageVector = Icons.Default.Done,
-                contentDescription = stringResource(R.string.save)
+                contentDescription = stringResource(R.string.save),
             )
             Text(text = stringResource(R.string.save))
         }
@@ -294,13 +298,14 @@ fun WorklogSplitterTimeScreen(
 @Composable
 fun WorklogInvalid() {
     Column(
-        modifier = Modifier
-            .padding(16.dp)
-            .fillMaxSize()
+        modifier =
+            Modifier
+                .padding(16.dp)
+                .fillMaxSize(),
     ) {
         Text(
             text = stringResource(R.string.worklog_not_available),
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
         )
     }
 }

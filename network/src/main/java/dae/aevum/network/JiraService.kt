@@ -17,7 +17,9 @@ import retrofit2.http.Query
 interface JiraService {
     @GET("user/picker")
     @Headers("Content-Type: application/json", "Accept: application/json")
-    fun getUser(@Query("query") query: String): Call<UserResponseRetro?>
+    fun getUser(
+        @Query("query") query: String,
+    ): Call<UserResponseRetro?>
 
     @GET("search/jql")
     @Headers("Content-Type: application/json", "Accept: application/json")
@@ -25,21 +27,21 @@ interface JiraService {
         @Query("jql") jql: String,
         @Query("fields") fields: String? = null,
         @Query("maxResults") maxResults: Int = 100,
-        @Query("startAt") startAt: Int = 0
+        @Query("startAt") startAt: Int = 0,
     ): Call<SearchRetro?>
 
     @GET("issue/{issueId}/worklog")
     @Headers("Content-Type: application/json", "Accept: application/json")
     fun listWorklogsFor(
         @Path("issueId") issueId: String,
-        @Query("startedAfter") startedAfter: Long
+        @Query("startedAfter") startedAfter: Long,
     ): Call<WorklogListRetro?>
 
     @POST("issue/{issueId}/worklog")
     @Headers("Content-Type: application/json", "Accept: application/json")
     fun addWorklog(
         @Path("issueId") issueId: String,
-        @Body body: WorklogAddRetro
+        @Body body: WorklogAddRetro,
     ): Call<ResponseBody>
 
     @GET("search/jql")
@@ -47,7 +49,7 @@ interface JiraService {
     fun testUser(
         @Query("jql") jql: String = "worklogAuthor = currentUser()",
         @Query("maxResults") maxResults: Int = 1,
-        @Header("Authorization") token: String
+        @Header("Authorization") token: String,
     ): Call<ResponseBody>
 
     companion object {

@@ -30,33 +30,35 @@ fun <T> PullToRefreshList(
     modifier: Modifier = Modifier,
     result: T,
     refresh: (() -> Job)? = null,
-    content: @Composable ColumnScope.(result: T) -> Unit
+    content: @Composable ColumnScope.(result: T) -> Unit,
 ) {
     val refreshScope = rememberCoroutineScope()
     var refreshing by rememberSaveable { mutableStateOf(false) }
 
-    fun internalRefresh() = refreshScope.launch {
-        refreshing = true
-        refresh?.invoke()?.join()
-        refreshing = false
-    }
+    fun internalRefresh() =
+        refreshScope.launch {
+            refreshing = true
+            refresh?.invoke()?.join()
+            refreshing = false
+        }
 
     val refreshState = rememberPullRefreshState(refreshing, ::internalRefresh)
 
     Spacer(modifier = Modifier.height(8.dp))
 
     Box(
-        modifier = modifier
+        modifier = modifier,
     ) {
         Box(
             Modifier
                 .fillMaxSize()
-                .pullRefresh(refreshState)
+                .pullRefresh(refreshState),
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(state = rememberScrollState())
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(state = rememberScrollState()),
             ) {
                 content(result)
                 Spacer(modifier = Modifier.height(96.dp))
@@ -65,7 +67,7 @@ fun <T> PullToRefreshList(
             PullRefreshIndicator(
                 refreshing = refreshing,
                 state = refreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
+                modifier = Modifier.align(Alignment.TopCenter),
             )
         }
     }

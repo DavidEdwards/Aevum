@@ -15,14 +15,16 @@ import javax.inject.Singleton
     entities = [
         IssueEntity::class,
         WorklogEntity::class,
-        UserEntity::class
+        UserEntity::class,
     ],
-    version = 10
+    version = 10,
 )
 @TypeConverters(Converters::class)
 @Singleton
 abstract class AppDatabase : RoomDatabase() {
     abstract fun issueDao(): IssuesDao
+
     abstract fun worklogDao(): WorklogDao
+
     abstract fun userDao(): UserDao
 }

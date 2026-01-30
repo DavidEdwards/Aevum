@@ -19,5 +19,5 @@ data class WorklogEntity(
     val author: String,
     val summary: String,
     val pending: Boolean,
-    val active: Boolean
+    val active: Boolean,
 )

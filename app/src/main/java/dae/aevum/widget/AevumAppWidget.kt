@@ -41,46 +41,53 @@ import timber.log.Timber
 
 class AevumAppWidget : GlanceAppWidget() {
     override val stateDefinition = PreferencesGlanceStateDefinition
-    override val sizeMode: SizeMode = SizeMode.Responsive(
-        setOf(
-            DpSize(110.dp, 60.dp),
-            DpSize(220.dp, 110.dp),
-            DpSize(300.dp, 200.dp)
+    override val sizeMode: SizeMode =
+        SizeMode.Responsive(
+            setOf(
+                DpSize(110.dp, 60.dp),
+                DpSize(220.dp, 110.dp),
+                DpSize(300.dp, 200.dp),
+            ),
         )
-    )
 
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
+    override suspend fun provideGlance(
+        context: Context,
+        id: GlanceId,
+    ) {
         Timber.d("AevumAppWidget.provideGlance(id=%s) invoked", id)
-        val entryPoint = EntryPointAccessors.fromApplication(
-            context,
-            AevumWidgetEntryPoint::class.java
-        )
+        val entryPoint =
+            EntryPointAccessors.fromApplication(
+                context,
+                AevumWidgetEntryPoint::class.java,
+            )
         val userRepo = entryPoint.userRepository()
         val db = entryPoint.database()
 
         // Load lightweight UI data: active issue if present, else last worked issue
-        val activeIssue: ActiveIssueEntity? = try {
-            withContext(Dispatchers.IO) {
-                val user = userRepo.getActiveUser() ?: return@withContext null
-                val activeWork = db.worklogDao().getActiveWorklogForUser(user.id)
-                if (activeWork == null) return@withContext null
-                val issue = try {
-                    db.issueDao().findIssueById(user.id, activeWork.issueId.value)
-                } catch (_: Throwable) {
-                    null
+        val activeIssue: ActiveIssueEntity? =
+            try {
+                withContext(Dispatchers.IO) {
+                    val user = userRepo.getActiveUser() ?: return@withContext null
+                    val activeWork = db.worklogDao().getActiveWorklogForUser(user.id)
+                    if (activeWork == null) return@withContext null
+                    val issue =
+                        try {
+                            db.issueDao().findIssueById(user.id, activeWork.issueId.value)
+                        } catch (_: Throwable) {
+                            null
+                        }
+                    if (issue != null) ActiveIssueEntity(issue = issue, worklog = activeWork) else null
                 }
-                if (issue != null) ActiveIssueEntity(issue = issue, worklog = activeWork) else null
+            } catch (_: Throwable) {
+                null
             }
-        } catch (_: Throwable) {
-            null
-        }
         if (activeIssue == null) {
             Timber.d("AevumAppWidget.provideGlance(id=%s): no active issue", id)
         } else {
             Timber.d(
                 "AevumAppWidget.provideGlance(id=%s): active=%s",
                 id,
-                activeIssue.issue.id.value
+                activeIssue.issue.id.value,
             )
         }
 
@@ -102,17 +109,19 @@ class AevumAppWidget : GlanceAppWidget() {
     }
 
     @Composable
+    @Suppress("ktlint:standard:function-naming") // Composable functions use PascalCase
     private fun WidgetContent(
         context: Context,
         active: ActiveIssueEntity?,
     ) {
         Column(
-            modifier = GlanceModifier
-                .fillMaxSize()
-                .background(ColorProvider(day = Color(0xFF202124), night = Color(0xFF202124)))
-                .padding(8.dp),
+            modifier =
+                GlanceModifier
+                    .fillMaxSize()
+                    .background(ColorProvider(day = Color(0xFF202124), night = Color(0xFF202124)))
+                    .padding(8.dp),
             verticalAlignment = Alignment.Top,
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             val textStyle = TextStyle(color = ColorProvider(day = Color.White, night = Color.White))
             if (active != null) {
@@ -123,12 +132,12 @@ class AevumAppWidget : GlanceAppWidget() {
                 Row(horizontalAlignment = Alignment.CenterHorizontally) {
                     Button(
                         text = "Stop",
-                        onClick = actionRunCallback<StopActiveTimerAction>()
+                        onClick = actionRunCallback<StopActiveTimerAction>(),
                     )
                     Spacer(modifier = GlanceModifier.width(8.dp))
                     Button(
                         text = "Open",
-                        onClick = actionStartActivity(Intent(context, MainActivity::class.java))
+                        onClick = actionStartActivity(Intent(context, MainActivity::class.java)),
                     )
                 }
             } else {
@@ -136,12 +145,12 @@ class AevumAppWidget : GlanceAppWidget() {
                 Row(horizontalAlignment = Alignment.CenterHorizontally) {
                     Button(
                         text = "Start last",
-                        onClick = actionRunCallback<StartLastIssueAction>()
+                        onClick = actionRunCallback<StartLastIssueAction>(),
                     )
                     Spacer(modifier = GlanceModifier.width(8.dp))
                     Button(
                         text = "Open",
-                        onClick = actionStartActivity(Intent(context, MainActivity::class.java))
+                        onClick = actionStartActivity(Intent(context, MainActivity::class.java)),
                     )
                 }
             }
@@ -152,5 +161,3 @@ class AevumAppWidget : GlanceAppWidget() {
 class AevumAppWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = AevumAppWidget()
 }
-
-

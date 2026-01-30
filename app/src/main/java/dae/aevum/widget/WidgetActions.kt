@@ -18,13 +18,14 @@ class StopActiveTimerAction : ActionCallback {
     override suspend fun onAction(
         context: Context,
         glanceId: GlanceId,
-        parameters: ActionParameters
+        parameters: ActionParameters,
     ) {
         Timber.d("StopActiveTimerAction.onAction(glanceId=%s)", glanceId)
-        val entryPoint = EntryPointAccessors.fromApplication(
-            context,
-            AevumWidgetEntryPoint::class.java
-        )
+        val entryPoint =
+            EntryPointAccessors.fromApplication(
+                context,
+                AevumWidgetEntryPoint::class.java,
+            )
         val repo = entryPoint.jiraRepository()
         val widgetRefresher = entryPoint.widgetRefresher()
 
@@ -43,8 +44,9 @@ class StopActiveTimerAction : ActionCallback {
         widgetRefresher.refreshAll()
 
         Timber.d("StopActiveTimerAction: requested widget updates and broadcast")
-        val explicit = Intent(Intents.ACTION_WORKLOG_CHANGED)
-            .setClass(appCtx, WorklogChangedReceiver::class.java)
+        val explicit =
+            Intent(Intents.ACTION_WORKLOG_CHANGED)
+                .setClass(appCtx, WorklogChangedReceiver::class.java)
         context.sendBroadcast(explicit, "dae.aevum.permission.WORKLOG_CHANGED")
     }
 }
@@ -53,13 +55,14 @@ class StartLastIssueAction : ActionCallback {
     override suspend fun onAction(
         context: Context,
         glanceId: GlanceId,
-        parameters: ActionParameters
+        parameters: ActionParameters,
     ) {
         Timber.d("StartLastIssueAction.onAction(glanceId=%s)", glanceId)
-        val entryPoint = EntryPointAccessors.fromApplication(
-            context,
-            AevumWidgetEntryPoint::class.java
-        )
+        val entryPoint =
+            EntryPointAccessors.fromApplication(
+                context,
+                AevumWidgetEntryPoint::class.java,
+            )
         val repo = entryPoint.jiraRepository()
         val userRepo = entryPoint.userRepository()
         val db = entryPoint.database()
@@ -84,10 +87,9 @@ class StartLastIssueAction : ActionCallback {
         widgetRefresher.refreshAll()
 
         Timber.d("StartLastIssueAction: requested widget updates and broadcast")
-        val explicit = Intent(Intents.ACTION_WORKLOG_CHANGED)
-            .setClass(appCtx, WorklogChangedReceiver::class.java)
+        val explicit =
+            Intent(Intents.ACTION_WORKLOG_CHANGED)
+                .setClass(appCtx, WorklogChangedReceiver::class.java)
         context.sendBroadcast(explicit, "dae.aevum.permission.WORKLOG_CHANGED")
     }
 }
-
-

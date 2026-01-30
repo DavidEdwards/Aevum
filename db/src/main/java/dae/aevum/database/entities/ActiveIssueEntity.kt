@@ -9,7 +9,7 @@ data class ActiveIssueEntity(
     @Embedded val issue: IssueEntity,
     @Relation(
         parentColumn = "id",
-        entityColumn = "issueId"
+        entityColumn = "issueId",
     )
-    val worklog: WorklogEntity
+    val worklog: WorklogEntity,
 )

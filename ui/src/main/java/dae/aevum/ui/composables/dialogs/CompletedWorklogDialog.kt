@@ -70,12 +70,13 @@ fun CompletedWorklogDialog(
                         // Await stop before navigating, so the active worklog is finalized and summary persisted
                         scope.launch {
                             viewModel.stopLoggingForAwait(worklogId, "")
-                            navController.navigate("worklogEditor/${worklogId}")
+                            navController.navigate("worklogEditor/$worklogId")
                         }
-                    }) {
+                    },
+                ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
-                        contentDescription = stringResource(R.string.write_log)
+                        contentDescription = stringResource(R.string.write_log),
                     )
                     Text(stringResource(R.string.write_log))
                 }
@@ -89,21 +90,22 @@ fun CompletedWorklogDialog(
                                 viewModel.stopLoggingAudioLogAwait()
                                 navController.popBackStack()
                             }
-                        }) {
+                        },
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Call,
-                            contentDescription = stringResource(R.string.speak_log)
+                            contentDescription = stringResource(R.string.speak_log),
                         )
                         Text(stringResource(R.string.speak_log))
                     }
                 } else {
                     Button(
                         enabled = !isStoppingWorklog,
-                        onClick = { micPermissionState.launchPermissionRequest() }
+                        onClick = { micPermissionState.launchPermissionRequest() },
                     ) {
                         Icon(
                             imageVector = Icons.Default.Call,
-                            contentDescription = stringResource(R.string.speak_log)
+                            contentDescription = stringResource(R.string.speak_log),
                         )
                         Text(stringResource(R.string.speak_log))
                     }
@@ -117,13 +119,14 @@ fun CompletedWorklogDialog(
                     viewModel.deleteLog(worklogId) {
                         navController.popBackStack()
                     }
-                }) {
+                },
+            ) {
                 Icon(
                     imageVector = Icons.Default.Clear,
-                    contentDescription = stringResource(R.string.do_not_log)
+                    contentDescription = stringResource(R.string.do_not_log),
                 )
                 Text(stringResource(R.string.do_not_log))
             }
-        }
+        },
     )
 }

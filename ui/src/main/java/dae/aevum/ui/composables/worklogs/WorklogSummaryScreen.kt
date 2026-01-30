@@ -34,7 +34,7 @@ import java.time.ZoneId
 fun WorklogSummaryScreen(
     viewModel: WorklogViewModel = hiltViewModel(),
     onOpenBarChart: () -> Unit,
-    onOpenDayDetailsForDay: (LocalDate) -> Unit
+    onOpenDayDetailsForDay: (LocalDate) -> Unit,
 ) {
     val worklogs by viewModel.worklogIssuesLastTwoWeeks.collectAsState(initial = emptyList())
 
@@ -47,7 +47,7 @@ fun WorklogSummaryScreen(
         grouped = grouped,
         onRefresh = { viewModel.refreshWorklogsLastTwoWeeks() },
         onOpenBarChart = onOpenBarChart,
-        onOpenDayDetailsForDay = onOpenDayDetailsForDay
+        onOpenDayDetailsForDay = onOpenDayDetailsForDay,
     )
 }
 
@@ -56,16 +56,18 @@ private fun WorklogSummaryContent(
     grouped: Map<LocalDate, List<WorklogIssueUiModel>>,
     onRefresh: () -> Unit,
     onOpenBarChart: () -> Unit,
-    onOpenDayDetailsForDay: (LocalDate) -> Unit
+    onOpenDayDetailsForDay: (LocalDate) -> Unit,
 ) {
-    val orderedDays = (0..13)
-        .map { LocalDate.now().minusDays(it.toLong()) }
-        .toList()
+    val orderedDays =
+        (0..13)
+            .map { LocalDate.now().minusDays(it.toLong()) }
+            .toList()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onRefresh) {
@@ -78,7 +80,9 @@ private fun WorklogSummaryContent(
         Spacer(modifier = Modifier.height(8.dp))
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp)
+            contentPadding =
+                androidx.compose.foundation.layout
+                    .PaddingValues(bottom = 96.dp),
         ) {
             items(orderedDays) { day ->
                 val entries = grouped[day].orEmpty()
@@ -88,24 +92,27 @@ private fun WorklogSummaryContent(
                 val meets = hours >= target
 
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onOpenDayDetailsForDay(day) }
-                            .background(if (meets) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.errorContainer)
-                            .padding(12.dp)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenDayDetailsForDay(day) }
+                                .background(
+                                    if (meets) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.errorContainer,
+                                ).padding(12.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(
                                 text = day.toString(),
-                                style = MaterialTheme.typography.titleMedium
+                                style = MaterialTheme.typography.titleMedium,
                             )
                             Text(text = String.format("%.1f / %.1f h", hours, target))
                         }
@@ -121,35 +128,36 @@ private fun WorklogSummaryContent(
 @Composable
 private fun WorklogSummaryScreenPreview() {
     val now = java.time.Instant.now()
-    val sample = listOf(
-        WorklogIssueUiModel(
-            workId = 1,
-            issueId = dae.aevum.utils.IssueId("AAPP-1"),
-            author = "You",
-            from = now.minusSeconds(3 * 3600),
-            to = now.minusSeconds(2 * 3600),
-            comment = "Setup project",
-            pending = false,
-            active = false,
-            issueTitle = "AAPP-1"
-        ),
-        WorklogIssueUiModel(
-            workId = 2,
-            issueId = dae.aevum.utils.IssueId("AAPP-2"),
-            author = "You",
-            from = now.minusSeconds(6 * 3600),
-            to = now.minusSeconds(4 * 3600),
-            comment = "Implement feature",
-            pending = false,
-            active = false,
-            issueTitle = "AAPP-2"
+    val sample =
+        listOf(
+            WorklogIssueUiModel(
+                workId = 1,
+                issueId = dae.aevum.utils.IssueId("AAPP-1"),
+                author = "You",
+                from = now.minusSeconds(3 * 3600),
+                to = now.minusSeconds(2 * 3600),
+                comment = "Setup project",
+                pending = false,
+                active = false,
+                issueTitle = "AAPP-1",
+            ),
+            WorklogIssueUiModel(
+                workId = 2,
+                issueId = dae.aevum.utils.IssueId("AAPP-2"),
+                author = "You",
+                from = now.minusSeconds(6 * 3600),
+                to = now.minusSeconds(4 * 3600),
+                comment = "Implement feature",
+                pending = false,
+                active = false,
+                issueTitle = "AAPP-2",
+            ),
         )
-    )
     val grouped = mapOf(LocalDate.now() to sample)
     WorklogSummaryContent(
         grouped = grouped,
         onRefresh = {},
         onOpenBarChart = {},
-        onOpenDayDetailsForDay = {}
+        onOpenDayDetailsForDay = {},
     )
 }

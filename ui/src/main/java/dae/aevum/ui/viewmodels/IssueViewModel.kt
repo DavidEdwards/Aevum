@@ -2,10 +2,10 @@ package dae.aevum.ui.viewmodels
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.State
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -33,130 +33,153 @@ import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class IssueViewModel @Inject constructor(
-    private val savedStateHandle: SavedStateHandle,
-    private val repository: JiraRepository,
-    userRepository: UserRepository,
-    @ApplicationContext private val appContext: Context,
-    private val widgetRefresher: WidgetRefresher
-) : ViewModel() {
-
-    private val savedViewedIssueId =
-        savedStateHandle.getStateFlow<String?>(SAVED_VIEWED_ISSUE_ID, null).map {
-            if (it == null) null
-            else IssueId(it)
-        }
-
-    val issueBeingViewed = savedViewedIssueId.flatMapLatest { issueId ->
-        if (issueId == null) {
-            emptyFlow()
-        } else {
-            repository.flowIssue(issueId)
-        }
-    }.map { entity ->
-        entity.let { IssueUiModel.fromEntity(entity = it) }
-    }
-
-    val worklogsForViewedIssue = savedViewedIssueId.flatMapLatest { issueId ->
-        if (issueId == null) {
-            emptyFlow()
-        } else {
-            repository.worklogsForIssue(issueId)
-        }
-    }.map { list ->
-        list.map { WorklogUiModel.fromEntity(entity = it) }
-    }
-
-    val activeIssue = repository.flowActiveIssue()
-    val issues = repository.flowIssues()
-
-    val activeUser = userRepository.flowActiveUser()
-
-    var searchTerm by mutableStateOf("")
-    private val _isLoadingProjectIssues = mutableStateOf(false)
-    val isLoadingProjectIssues: State<Boolean> = _isLoadingProjectIssues
-
-    val filteredIssues = issues.combine(snapshotFlow { searchTerm }) { issues, term ->
-        issues.filter {
-            it.id.value.contains(term, true) ||
-                    it.title.contains(term, true)
-        }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-
-    fun setViewedIssueId(id: IssueId?) {
-        savedStateHandle[SAVED_VIEWED_ISSUE_ID] = id?.value
-    }
-
-    fun refreshIssues() = viewModelScope.launch {
-        Timber.v("Refreshing issues…")
-        repository.refreshIssuesfromJira()
-    }
-
-    fun refreshWorklogsFor(issueId: IssueId) = viewModelScope.launch {
-        Timber.v("Refreshing worklogs…")
-        repository.refreshWorklogsFor(issueId)
-    }
-
-    fun startLogFor(
-        issueId: IssueId
-    ) {
-        viewModelScope.launch {
-            repository.startLogFor(issueId)
-            // Notify widget to refresh immediately (explicit to this app)
-            val intent = Intent(Intents.ACTION_WORKLOG_CHANGED).setPackage(appContext.packageName)
-            appContext.sendBroadcast(intent, "dae.aevum.permission.WORKLOG_CHANGED")
-            // Direct refresh via DI to avoid relying only on the broadcast
-            widgetRefresher.refreshAll()
-        }
-    }
-
-    fun deleteLog(worklogId: Long) {
-        viewModelScope.launch {
-            repository.deleteWorklog(worklogId)
-        }
-    }
-
-    fun updateWorklog(worklogId: Long, from: Instant, to: Instant, summary: String) {
-        viewModelScope.launch {
-            repository.updateWorklog(worklogId, from, to, summary)
-        }
-    }
-
-    fun incrementWorklogTime(worklogId: Long, amount: Long) {
-        viewModelScope.launch {
-            repository.incrementWorklogTime(worklogId, amount)
-        }
-    }
-
-    fun decrementWorklogTime(worklogId: Long, amount: Long) {
-        viewModelScope.launch {
-            repository.decrementWorklogTime(worklogId, amount)
-        }
-    }
-
-    fun toggleIssuePin(issueId: IssueId) {
-        viewModelScope.launch {
-            repository.toggleIssuePin(issueId)
-        }
-    }
-
-    fun getLatestIssuesForProject(projectKey: String, maxResults: Int = 10) = viewModelScope.launch {
-        try {
-            _isLoadingProjectIssues.value = true
-            val issues = repository.getLatestIssuesForProject(projectKey, maxResults)
-            Timber.v("Found and saved ${issues.size} latest issues for project $projectKey")
-            issues.forEach { issue ->
-                Timber.v("Issue: ${issue.id.value} - ${issue.title}")
+class IssueViewModel
+    @Inject
+    constructor(
+        private val savedStateHandle: SavedStateHandle,
+        private val repository: JiraRepository,
+        userRepository: UserRepository,
+        @ApplicationContext private val appContext: Context,
+        private val widgetRefresher: WidgetRefresher,
+    ) : ViewModel() {
+        private val savedViewedIssueId =
+            savedStateHandle.getStateFlow<String?>(SAVED_VIEWED_ISSUE_ID, null).map {
+                if (it == null) {
+                    null
+                } else {
+                    IssueId(it)
+                }
             }
-        } catch (e: Exception) {
-            Timber.e(e, "Error getting latest issues for project $projectKey")
-        } finally {
-            _isLoadingProjectIssues.value = false
+
+        val issueBeingViewed =
+            savedViewedIssueId
+                .flatMapLatest { issueId ->
+                    if (issueId == null) {
+                        emptyFlow()
+                    } else {
+                        repository.flowIssue(issueId)
+                    }
+                }.map { entity ->
+                    entity.let { IssueUiModel.fromEntity(entity = it) }
+                }
+
+        val worklogsForViewedIssue =
+            savedViewedIssueId
+                .flatMapLatest { issueId ->
+                    if (issueId == null) {
+                        emptyFlow()
+                    } else {
+                        repository.worklogsForIssue(issueId)
+                    }
+                }.map { list ->
+                    list.map { WorklogUiModel.fromEntity(entity = it) }
+                }
+
+        val activeIssue = repository.flowActiveIssue()
+        val issues = repository.flowIssues()
+
+        val activeUser = userRepository.flowActiveUser()
+
+        var searchTerm by mutableStateOf("")
+        private val _isLoadingProjectIssues = mutableStateOf(false)
+        val isLoadingProjectIssues: State<Boolean> = _isLoadingProjectIssues
+
+        val filteredIssues =
+            issues
+                .combine(snapshotFlow { searchTerm }) { issues, term ->
+                    issues.filter {
+                        it.id.value.contains(term, true) ||
+                            it.title.contains(term, true)
+                    }
+                }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+        fun setViewedIssueId(id: IssueId?) {
+            savedStateHandle[SAVED_VIEWED_ISSUE_ID] = id?.value
+        }
+
+        fun refreshIssues() =
+            viewModelScope.launch {
+                Timber.v("Refreshing issues…")
+                repository.refreshIssuesfromJira()
+            }
+
+        fun refreshWorklogsFor(issueId: IssueId) =
+            viewModelScope.launch {
+                Timber.v("Refreshing worklogs…")
+                repository.refreshWorklogsFor(issueId)
+            }
+
+        fun startLogFor(issueId: IssueId) {
+            viewModelScope.launch {
+                repository.startLogFor(issueId)
+                // Notify widget to refresh immediately (explicit to this app)
+                val intent = Intent(Intents.ACTION_WORKLOG_CHANGED).setPackage(appContext.packageName)
+                appContext.sendBroadcast(intent, "dae.aevum.permission.WORKLOG_CHANGED")
+                // Direct refresh via DI to avoid relying only on the broadcast
+                widgetRefresher.refreshAll()
+            }
+        }
+
+        fun deleteLog(worklogId: Long) {
+            viewModelScope.launch {
+                repository.deleteWorklog(worklogId)
+            }
+        }
+
+        fun updateWorklog(
+            worklogId: Long,
+            from: Instant,
+            to: Instant,
+            summary: String,
+        ) {
+            viewModelScope.launch {
+                repository.updateWorklog(worklogId, from, to, summary)
+            }
+        }
+
+        fun incrementWorklogTime(
+            worklogId: Long,
+            amount: Long,
+        ) {
+            viewModelScope.launch {
+                repository.incrementWorklogTime(worklogId, amount)
+            }
+        }
+
+        fun decrementWorklogTime(
+            worklogId: Long,
+            amount: Long,
+        ) {
+            viewModelScope.launch {
+                repository.decrementWorklogTime(worklogId, amount)
+            }
+        }
+
+        fun toggleIssuePin(issueId: IssueId) {
+            viewModelScope.launch {
+                repository.toggleIssuePin(issueId)
+            }
+        }
+
+        fun getLatestIssuesForProject(
+            projectKey: String,
+            maxResults: Int = 10,
+        ) = viewModelScope.launch {
+            try {
+                _isLoadingProjectIssues.value = true
+                val issues = repository.getLatestIssuesForProject(projectKey, maxResults)
+                Timber.v("Found and saved ${issues.size} latest issues for project $projectKey")
+                issues.forEach { issue ->
+                    Timber.v("Issue: ${issue.id.value} - ${issue.title}")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Error getting latest issues for project $projectKey")
+            } finally {
+                _isLoadingProjectIssues.value = false
+            }
+        }
+
+        companion object {
+            private const val SAVED_VIEWED_ISSUE_ID = "viewedIssueId"
         }
     }
-
-    companion object {
-        private const val SAVED_VIEWED_ISSUE_ID = "viewedIssueId"
-    }
-
-}

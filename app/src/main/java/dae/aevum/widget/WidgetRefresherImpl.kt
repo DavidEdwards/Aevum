@@ -11,33 +11,34 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import javax.inject.Inject
 
-class WidgetRefresherImpl @Inject constructor(
-    @ApplicationContext private val appContext: Context
-) : WidgetRefresher {
-    override suspend fun refreshAll() {
-        Timber.d("WidgetRefresherImpl.refreshAll")
-        val manager = GlanceAppWidgetManager(appContext)
-        val ids = manager.getGlanceIds(AevumAppWidget::class.java)
-        val key = intPreferencesKey("nonce")
-        for (id in ids) {
-            Timber.d("WidgetRefresherImpl: touching state for id=%s", id)
-            updateAppWidgetState(appContext, id) { prefs ->
-                val old = prefs[key] ?: 0
-                prefs[key] = old + 1
+class WidgetRefresherImpl
+    @Inject
+    constructor(
+        @ApplicationContext private val appContext: Context,
+    ) : WidgetRefresher {
+        override suspend fun refreshAll() {
+            Timber.d("WidgetRefresherImpl.refreshAll")
+            val manager = GlanceAppWidgetManager(appContext)
+            val ids = manager.getGlanceIds(AevumAppWidget::class.java)
+            val key = intPreferencesKey("nonce")
+            for (id in ids) {
+                Timber.d("WidgetRefresherImpl: touching state for id=%s", id)
+                updateAppWidgetState(appContext, id) { prefs ->
+                    val old = prefs[key] ?: 0
+                    prefs[key] = old + 1
+                }
+                Timber.d("WidgetRefresherImpl: requesting update for id=%s", id)
+                AevumAppWidget().update(appContext, id)
             }
-            Timber.d("WidgetRefresherImpl: requesting update for id=%s", id)
-            AevumAppWidget().update(appContext, id)
+            // As a safety net, loop again to request updates for all instances
+            for (id in ids) {
+                AevumAppWidget().update(appContext, id)
+            }
+            val intent =
+                Intent(Intents.ACTION_WORKLOG_CHANGED)
+                    .setClass(appContext, WorklogChangedReceiver::class.java)
+                    .setPackage(appContext.packageName)
+            Timber.d("WidgetRefresherImpl: broadcasting worklog changed to receiver")
+            appContext.sendBroadcast(intent, "dae.aevum.permission.WORKLOG_CHANGED")
         }
-        // As a safety net, loop again to request updates for all instances
-        for (id in ids) {
-            AevumAppWidget().update(appContext, id)
-        }
-        val intent = Intent(Intents.ACTION_WORKLOG_CHANGED)
-            .setClass(appContext, WorklogChangedReceiver::class.java)
-            .setPackage(appContext.packageName)
-        Timber.d("WidgetRefresherImpl: broadcasting worklog changed to receiver")
-        appContext.sendBroadcast(intent, "dae.aevum.permission.WORKLOG_CHANGED")
     }
-}
-
-

@@ -12,11 +12,11 @@ data class WorklogUiModel(
     val to: Instant,
     val comment: String,
     val pending: Boolean,
-    val active: Boolean
+    val active: Boolean,
 ) {
     companion object {
-        fun fromEntity(entity: WorklogEntity): WorklogUiModel {
-            return WorklogUiModel(
+        fun fromEntity(entity: WorklogEntity): WorklogUiModel =
+            WorklogUiModel(
                 workId = entity.workId,
                 issueId = entity.issueId,
                 author = entity.author,
@@ -24,8 +24,7 @@ data class WorklogUiModel(
                 to = entity.to,
                 comment = entity.summary,
                 pending = entity.pending,
-                active = entity.active
+                active = entity.active,
             )
-        }
     }
 }

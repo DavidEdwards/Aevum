@@ -21,17 +21,16 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 @Composable
-fun WorklogBarChartScreen(
-    viewModel: WorklogViewModel = hiltViewModel()
-) {
+fun WorklogBarChartScreen(viewModel: WorklogViewModel = hiltViewModel()) {
     val worklogs by viewModel.worklogIssuesLastTwoWeeks.collectAsState(initial = emptyList())
     val grouped = worklogs.groupBy { it.from.atZone(ZoneId.systemDefault()).toLocalDate() }
     val orderedDays = (0..13).map { LocalDate.now().minusDays(it.toLong()) }
-    val values = orderedDays.map { day ->
-        val entries = grouped[day].orEmpty()
-        val seconds = entries.sumOf { Duration.between(it.from, it.to).seconds }
-        seconds / 3600f
-    }
+    val values =
+        orderedDays.map { day ->
+            val entries = grouped[day].orEmpty()
+            val seconds = entries.sumOf { Duration.between(it.from, it.to).seconds }
+            seconds / 3600f
+        }
 
     val goodColor = MaterialTheme.colorScheme.primary
     val badColor = MaterialTheme.colorScheme.error
@@ -40,13 +39,14 @@ fun WorklogBarChartScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(16.dp),
     ) {
         Text(text = "Last 14 days", style = MaterialTheme.typography.titleMedium)
         Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(top = 16.dp),
         ) {
             val barCount = values.size
             if (barCount == 0) return@Canvas
@@ -62,7 +62,9 @@ fun WorklogBarChartScreen(
                 drawRect(
                     color = if (hours >= target) goodColor else badColor,
                     topLeft = Offset(x, y),
-                    size = androidx.compose.ui.geometry.Size(widthPerBar, barHeight)
+                    size =
+                        androidx.compose.ui.geometry
+                            .Size(widthPerBar, barHeight),
                 )
             }
 
@@ -72,7 +74,7 @@ fun WorklogBarChartScreen(
                 color = lineColor,
                 start = Offset(0f, targetY),
                 end = Offset(size.width, targetY),
-                strokeWidth = 2f
+                strokeWidth = 2f,
             )
         }
     }

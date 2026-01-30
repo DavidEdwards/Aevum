@@ -39,7 +39,7 @@ import timber.log.Timber
 fun AddUserDialog(
     modifier: Modifier = Modifier,
     viewModel: UserViewModel = hiltViewModel(),
-    navController: NavController = rememberNavController()
+    navController: NavController = rememberNavController(),
 ) {
     var instanceUrl by rememberSaveable {
         mutableStateOf(viewModel.instanceUrl)
@@ -65,13 +65,14 @@ fun AddUserDialog(
         },
         text = {
             Column(
-                modifier = Modifier
-                    .verticalScroll(state = rememberScrollState())
+                modifier =
+                    Modifier
+                        .verticalScroll(state = rememberScrollState()),
             ) {
                 if (error.isNotBlank()) {
                     Text(
                         text = error,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
                     )
                 } else {
                     Text(stringResource(R.string.user_details_info))
@@ -88,7 +89,7 @@ fun AddUserDialog(
                     label = {
                         Text(text = stringResource(R.string.instance_url))
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 )
 
                 OutlinedTextField(
@@ -102,7 +103,7 @@ fun AddUserDialog(
                     label = {
                         Text(text = stringResource(R.string.user))
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 )
 
                 OutlinedTextField(
@@ -116,14 +117,16 @@ fun AddUserDialog(
                     label = {
                         Text(text = stringResource(R.string.token))
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 )
 
                 val context = LocalContext.current
                 OutlinedButton(onClick = {
-                    context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-                        data = "https://id.atlassian.com/manage-profile/security/api-tokens".toUri()
-                    })
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW).apply {
+                            data = "https://id.atlassian.com/manage-profile/security/api-tokens".toUri()
+                        },
+                    )
                 }) {
                     Text(text = stringResource(R.string.get_a_token))
                 }
@@ -136,24 +139,23 @@ fun AddUserDialog(
                 if (viewModel.loading) {
                     CircularProgressIndicator()
                 } else {
-                    Button(
-                        onClick = {
-                            instanceUrl.toHttpUrlOrNull() ?: run {
-                                error = badInstanceUrlError
-                                return@Button
-                            }
+                    Button(onClick = {
+                        instanceUrl.toHttpUrlOrNull() ?: run {
+                            error = badInstanceUrlError
+                            return@Button
+                        }
 
-                            viewModel.addUser(instanceUrl, user, token) { success ->
-                                if (success) {
-                                    navController.popBackStack()
-                                } else {
-                                    error = accountNotVerifiedError
-                                }
+                        viewModel.addUser(instanceUrl, user, token) { success ->
+                            if (success) {
+                                navController.popBackStack()
+                            } else {
+                                error = accountNotVerifiedError
                             }
-                        }) {
+                        }
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Done,
-                            contentDescription = stringResource(R.string.add_user)
+                            contentDescription = stringResource(R.string.add_user),
                         )
                         Text(stringResource(R.string.add_user))
                     }
@@ -161,16 +163,15 @@ fun AddUserDialog(
             }
         },
         dismissButton = {
-            Button(
-                onClick = {
-                    navController.popBackStack()
-                }) {
+            Button(onClick = {
+                navController.popBackStack()
+            }) {
                 Icon(
                     imageVector = Icons.Default.Clear,
-                    contentDescription = stringResource(R.string.close)
+                    contentDescription = stringResource(R.string.close),
                 )
                 Text(stringResource(R.string.close))
             }
-        }
+        },
     )
 }

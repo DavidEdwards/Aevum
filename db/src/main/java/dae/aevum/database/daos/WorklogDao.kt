@@ -51,21 +51,24 @@ interface WorklogDao {
     @Query("SELECT * FROM worklogs WHERE userId = :userId AND pending = 1 ORDER BY `from` DESC")
     fun flowPendingWorklogs(userId: Int): Flow<List<WorklogEntity>>
 
-    @Query("SELECT * FROM worklogs WHERE userId = :userId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC")
+    @Query(
+        "SELECT * FROM worklogs WHERE userId = :userId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC",
+    )
     fun flowWorklogsToday(
         userId: Int,
         dayStart: Instant,
-        dayEnd: Instant
+        dayEnd: Instant,
     ): Flow<List<WorklogEntity>>
 
-    @Query("SELECT * FROM worklogs WHERE userId = :userId AND jiraUserAccountId = :jiraUserAccountId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC LIMIT 500")
+    @Query(
+        "SELECT * FROM worklogs WHERE userId = :userId AND jiraUserAccountId = :jiraUserAccountId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC LIMIT 500",
+    )
     fun getWorklogsTodayFromMe(
         userId: Int,
         dayStart: Instant,
         dayEnd: Instant,
-        jiraUserAccountId: String
+        jiraUserAccountId: String,
     ): Flow<List<WorklogEntity>>
-
 
     /**
      * Returns all worklogs authored by the current Jira user that overlap with the provided range.
@@ -73,47 +76,51 @@ interface WorklogDao {
      */
     @Query(
         "SELECT * FROM worklogs " +
-                "WHERE userId = :userId " +
-                "AND jiraUserAccountId = :jiraUserAccountId " +
-                "AND `from` <= :end " +
-                "AND `to` >= :start " +
-                "ORDER BY `from` ASC"
+            "WHERE userId = :userId " +
+            "AND jiraUserAccountId = :jiraUserAccountId " +
+            "AND `from` <= :end " +
+            "AND `to` >= :start " +
+            "ORDER BY `from` ASC",
     )
     fun getWorklogsFromMeBetween(
         userId: Int,
         start: Instant,
         end: Instant,
-        jiraUserAccountId: String
+        jiraUserAccountId: String,
     ): Flow<List<WorklogEntity>>
-
 
     @Query("SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues WHERE worklogs.issueId = issues.id")
     fun getWorklogsAndIssues(): Flow<List<WorklogIssue>>
 
-    @Query("SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues WHERE worklogs.issueId = issues.id AND worklogs.userId = :userId AND worklogs.jiraUserAccountId = :jiraUserAccountId AND ((worklogs.`from` BETWEEN :dayStart AND :dayEnd) OR (worklogs.`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY worklogs.`from` DESC")
+    @Query(
+        "SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues WHERE worklogs.issueId = issues.id AND worklogs.userId = :userId AND worklogs.jiraUserAccountId = :jiraUserAccountId AND ((worklogs.`from` BETWEEN :dayStart AND :dayEnd) OR (worklogs.`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY worklogs.`from` DESC",
+    )
     fun getWorklogIssuesTodayFromMe(
         userId: Int,
         dayStart: Instant,
         dayEnd: Instant,
-        jiraUserAccountId: String
+        jiraUserAccountId: String,
     ): Flow<List<WorklogIssue>>
 
     @Query(
         "SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues " +
-                "WHERE worklogs.issueId = issues.id AND worklogs.userId = :userId " +
-                "AND worklogs.jiraUserAccountId = :jiraUserAccountId " +
-                "AND ((worklogs.`from` BETWEEN :rangeStart AND :rangeEnd) OR (worklogs.`to` BETWEEN :rangeStart AND :rangeEnd)) " +
-                "ORDER BY worklogs.`from` DESC"
+            "WHERE worklogs.issueId = issues.id AND worklogs.userId = :userId " +
+            "AND worklogs.jiraUserAccountId = :jiraUserAccountId " +
+            "AND ((worklogs.`from` BETWEEN :rangeStart AND :rangeEnd) OR (worklogs.`to` BETWEEN :rangeStart AND :rangeEnd)) " +
+            "ORDER BY worklogs.`from` DESC",
     )
     fun getWorklogIssuesInRangeFromMe(
         userId: Int,
         rangeStart: Instant,
         rangeEnd: Instant,
-        jiraUserAccountId: String
+        jiraUserAccountId: String,
     ): Flow<List<WorklogIssue>>
 
     @Transaction
-    suspend fun splitWork(splitFrom: WorklogEntity, splitTo: WorklogEntity): Long {
+    suspend fun splitWork(
+        splitFrom: WorklogEntity,
+        splitTo: WorklogEntity,
+    ): Long {
         try {
             // Validate inputs before transaction
             if (splitFrom.workId <= 0) {

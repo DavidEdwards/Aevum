@@ -23,28 +23,35 @@ import java.time.ZonedDateTime
 import kotlin.math.ceil
 import kotlin.math.max
 
-class Jira(private val jiraService: JiraService) {
-
+class Jira(
+    private val jiraService: JiraService,
+) {
     suspend fun getJiraAccount(email: String): UserRetro {
-        val body = withContext(Dispatchers.IO) {
-            jiraService.getUser(email).execute().body()
-        } ?: throw IllegalArgumentException("Could not get Jira account id for $email")
+        val body =
+            withContext(Dispatchers.IO) {
+                jiraService.getUser(email).execute().body()
+            } ?: throw IllegalArgumentException("Could not get Jira account id for $email")
 
         return body.users.firstOrNull()
             ?: throw IllegalArgumentException("Could not get Jira account id for $email")
     }
 
-    suspend fun searchIssues(userId: Int, searches: List<String>) = withContext(Dispatchers.IO) {
-        val asyncSearches = searches.map { jql ->
-            async(Dispatchers.IO) {
-                jiraService.searchIssues(
-                    jql = jql,
-                    fields = "id,summary,key",
-                    maxResults = 1000,
-                    startAt = 0
-                ).execute()
+    suspend fun searchIssues(
+        userId: Int,
+        searches: List<String>,
+    ) = withContext(Dispatchers.IO) {
+        val asyncSearches =
+            searches.map { jql ->
+                async(Dispatchers.IO) {
+                    jiraService
+                        .searchIssues(
+                            jql = jql,
+                            fields = "id,summary,key",
+                            maxResults = 1000,
+                            startAt = 0,
+                        ).execute()
+                }
             }
-        }
         val asyncResults = asyncSearches.awaitAll()
         yield()
 
@@ -56,15 +63,16 @@ class Jira(private val jiraService: JiraService) {
                 val body = response.body()
                 if (body != null) {
                     Timber.v("Search contains ${body.issues} issues.")
-                    val issueEntities = body.issues.mapIndexed { index, issueRetro ->
-                        IssueEntity(
-                            id = IssueId(issueRetro.key),
-                            userId = userId,
-                            title = issueRetro.fields.summary,
-                            pinned = false,
-                            sort = index
-                        )
-                    }
+                    val issueEntities =
+                        body.issues.mapIndexed { index, issueRetro ->
+                            IssueEntity(
+                                id = IssueId(issueRetro.key),
+                                userId = userId,
+                                title = issueRetro.fields.summary,
+                                pinned = false,
+                                sort = index,
+                            )
+                        }
 
                     entityList.addAll(issueEntities)
                 } else {
@@ -78,16 +86,21 @@ class Jira(private val jiraService: JiraService) {
         entityList
     }
 
-    suspend fun loadIssue(userId: Int, issueKey: String): IssueEntity? {
+    suspend fun loadIssue(
+        userId: Int,
+        issueKey: String,
+    ): IssueEntity? {
         try {
-            val response = withContext(Dispatchers.IO) {
-                jiraService.searchIssues(
-                    jql = "key = $issueKey",
-                    fields = "summary,key",
-                    maxResults = 1,
-                    startAt = 0
-                ).execute()
-            }
+            val response =
+                withContext(Dispatchers.IO) {
+                    jiraService
+                        .searchIssues(
+                            jql = "key = $issueKey",
+                            fields = "summary,key",
+                            maxResults = 1,
+                            startAt = 0,
+                        ).execute()
+                }
 
             yield()
             if (response.isSuccessful) {
@@ -99,7 +112,7 @@ class Jira(private val jiraService: JiraService) {
                         userId = userId,
                         title = issueRetro.fields.summary,
                         pinned = false,
-                        sort = 0
+                        sort = 0,
                     )
                 } else {
                     Timber.e("No body or no issues found for key: $issueKey")
@@ -113,40 +126,48 @@ class Jira(private val jiraService: JiraService) {
         return null
     }
 
-    suspend fun refreshWorklogsFor(issueId: IssueId, user: UserEntity): List<WorklogEntity> {
+    suspend fun refreshWorklogsFor(
+        issueId: IssueId,
+        user: UserEntity,
+    ): List<WorklogEntity> {
         try {
-            val response = withContext(Dispatchers.IO) {
-                Timber.v("Fetching worklogs for issue: ${issueId.value}")
-                val call = jiraService.listWorklogsFor(
-                    issueId.value,
-                    System.currentTimeMillis() - JiraService.ONE_MONTH_IN_MILLIS
-                )
-                call.execute()
-            }
+            val response =
+                withContext(Dispatchers.IO) {
+                    Timber.v("Fetching worklogs for issue: ${issueId.value}")
+                    val call =
+                        jiraService.listWorklogsFor(
+                            issueId.value,
+                            System.currentTimeMillis() - JiraService.ONE_MONTH_IN_MILLIS,
+                        )
+                    call.execute()
+                }
 
             yield()
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {
-                    val entities = body.worklogs.map {
-                        val parsedTime = ZonedDateTime.parse(
-                            it.started,
-                            Formatters.universalDateTimeZoneFormatter
-                        ).toInstant()
+                    val entities =
+                        body.worklogs.map {
+                            val parsedTime =
+                                ZonedDateTime
+                                    .parse(
+                                        it.started,
+                                        Formatters.universalDateTimeZoneFormatter,
+                                    ).toInstant()
 
-                        WorklogEntity(
-                            workId = it.id.toLong(),
-                            issueId = issueId,
-                            userId = user.id,
-                            jiraUserAccountId = it.author.accountId,
-                            from = parsedTime,
-                            to = parsedTime.plusSeconds(it.timeSpentSeconds),
-                            author = it.author.displayName,
-                            summary = it.comment?.generateUnifiedString() ?: "No comment",
-                            pending = false,
-                            active = false
-                        )
-                    }
+                            WorklogEntity(
+                                workId = it.id.toLong(),
+                                issueId = issueId,
+                                userId = user.id,
+                                jiraUserAccountId = it.author.accountId,
+                                from = parsedTime,
+                                to = parsedTime.plusSeconds(it.timeSpentSeconds),
+                                author = it.author.displayName,
+                                summary = it.comment?.generateUnifiedString() ?: "No comment",
+                                pending = false,
+                                active = false,
+                            )
+                        }
 
                     return entities
                 } else {
@@ -164,15 +185,17 @@ class Jira(private val jiraService: JiraService) {
     suspend fun refreshWorklogsToday(user: UserEntity): List<WorklogEntity> {
         try {
             // Get all issues for the user
-            val issues = withContext(Dispatchers.IO) {
-                val call = jiraService.searchIssues(
-                    jql = "worklogAuthor = currentUser() AND worklogDate >= startOfDay() AND worklogDate <= endOfDay()",
-                    fields = "key",
-                    maxResults = 1000,
-                    startAt = 0
-                )
-                call.execute()
-            }
+            val issues =
+                withContext(Dispatchers.IO) {
+                    val call =
+                        jiraService.searchIssues(
+                            jql = "worklogAuthor = currentUser() AND worklogDate >= startOfDay() AND worklogDate <= endOfDay()",
+                            fields = "key",
+                            maxResults = 1000,
+                            startAt = 0,
+                        )
+                    call.execute()
+                }
 
             yield()
             if (issues.isSuccessful) {
@@ -204,18 +227,21 @@ class Jira(private val jiraService: JiraService) {
     fun updateWorklog(worklog: WorklogEntity): WorklogEntity {
         val secondsDuration =
             ceil(
-                Duration.between(worklog.from, worklog.to).toMillis() / 1000.0 / 60.0
+                Duration.between(worklog.from, worklog.to).toMillis() / 1000.0 / 60.0,
             ).toInt() * 60
 
-        val response = jiraService.addWorklog(
-            worklog.issueId.value,
-            WorklogAddRetro(
-                CommentNodeRetro.generateFromString(worklog.summary),
-                Formatters.universalDateTimeZoneFormatter.withZone(ZoneId.of("UTC"))
-                    .format(worklog.from),
-                max(secondsDuration, 60)
-            )
-        ).execute()
+        val response =
+            jiraService
+                .addWorklog(
+                    worklog.issueId.value,
+                    WorklogAddRetro(
+                        CommentNodeRetro.generateFromString(worklog.summary),
+                        Formatters.universalDateTimeZoneFormatter
+                            .withZone(ZoneId.of("UTC"))
+                            .format(worklog.from),
+                        max(secondsDuration, 60),
+                    ),
+                ).execute()
 
         return if (response.isSuccessful) {
             Timber.v("Posted ${worklog.workId}(${worklog.issueId}) to Jira")
@@ -227,38 +253,43 @@ class Jira(private val jiraService: JiraService) {
     }
 
     @Suppress("UNUSED_PARAMETER")
-    suspend fun testUser(instanceUrl: String, authHeader: String): Boolean {
-        return try {
-            val response = withContext(Dispatchers.IO) {
-                jiraService.testUser(token = authHeader).execute()
-            }
+    suspend fun testUser(
+        instanceUrl: String,
+        authHeader: String,
+    ): Boolean =
+        try {
+            val response =
+                withContext(Dispatchers.IO) {
+                    jiraService.testUser(token = authHeader).execute()
+                }
 
             response.isSuccessful
         } catch (e: Exception) {
             false
         }
-    }
 
     suspend fun refreshWorklogsInRange(
         user: UserEntity,
         start: Instant,
-        end: Instant
+        end: Instant,
     ): List<WorklogEntity> {
         try {
             val startDate = LocalDateTime.ofInstant(start, ZoneOffset.UTC).toLocalDate()
             val endDate = LocalDateTime.ofInstant(end, ZoneOffset.UTC).toLocalDate()
 
             // Search for issues with worklogs by current user in range
-            val issuesResponse = withContext(Dispatchers.IO) {
-                val jql =
-                    "worklogAuthor = currentUser() AND worklogDate >= ${startDate} AND worklogDate <= ${endDate}"
-                jiraService.searchIssues(
-                    jql = jql,
-                    fields = "key",
-                    maxResults = 1000,
-                    startAt = 0
-                ).execute()
-            }
+            val issuesResponse =
+                withContext(Dispatchers.IO) {
+                    val jql =
+                        "worklogAuthor = currentUser() AND worklogDate >= $startDate AND worklogDate <= $endDate"
+                    jiraService
+                        .searchIssues(
+                            jql = jql,
+                            fields = "key",
+                            maxResults = 1000,
+                            startAt = 0,
+                        ).execute()
+                }
 
             yield()
             if (!issuesResponse.isSuccessful) {
@@ -273,37 +304,42 @@ class Jira(private val jiraService: JiraService) {
 
             val allWorklogs = mutableListOf<WorklogEntity>()
             issueKeys.forEach { issueKey ->
-                val response = withContext(Dispatchers.IO) {
-                    jiraService.listWorklogsFor(issueKey, startedAfter).execute()
-                }
+                val response =
+                    withContext(Dispatchers.IO) {
+                        jiraService.listWorklogsFor(issueKey, startedAfter).execute()
+                    }
                 yield()
                 if (response.isSuccessful) {
                     val listBody = response.body() ?: return@forEach
-                    val entities = listBody.worklogs.map { worklog ->
-                        val startedInstant = ZonedDateTime.parse(
-                            worklog.started,
-                            Formatters.universalDateTimeZoneFormatter
-                        ).toInstant()
+                    val entities =
+                        listBody.worklogs.map { worklog ->
+                            val startedInstant =
+                                ZonedDateTime
+                                    .parse(
+                                        worklog.started,
+                                        Formatters.universalDateTimeZoneFormatter,
+                                    ).toInstant()
 
-                        WorklogEntity(
-                            workId = worklog.id.toLong(),
-                            issueId = IssueId(issueKey),
-                            userId = user.id,
-                            jiraUserAccountId = worklog.author.accountId,
-                            from = startedInstant,
-                            to = startedInstant.plusSeconds(worklog.timeSpentSeconds),
-                            author = worklog.author.displayName,
-                            summary = worklog.comment?.generateUnifiedString() ?: "No comment",
-                            pending = false,
-                            active = false
-                        )
-                    }
+                            WorklogEntity(
+                                workId = worklog.id.toLong(),
+                                issueId = IssueId(issueKey),
+                                userId = user.id,
+                                jiraUserAccountId = worklog.author.accountId,
+                                from = startedInstant,
+                                to = startedInstant.plusSeconds(worklog.timeSpentSeconds),
+                                author = worklog.author.displayName,
+                                summary = worklog.comment?.generateUnifiedString() ?: "No comment",
+                                pending = false,
+                                active = false,
+                            )
+                        }
 
                     // Keep only worklogs overlapping the [start, end] window
-                    val filtered = entities.filter { entity ->
-                        val overlaps = entity.from.isBefore(end) && entity.to.isAfter(start)
-                        overlaps
-                    }
+                    val filtered =
+                        entities.filter { entity ->
+                            val overlaps = entity.from.isBefore(end) && entity.to.isAfter(start)
+                            overlaps
+                        }
                     allWorklogs.addAll(filtered)
                 } else {
                     Timber.e(response.message())

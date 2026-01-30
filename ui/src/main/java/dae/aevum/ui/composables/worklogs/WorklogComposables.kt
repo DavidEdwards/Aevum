@@ -1,5 +1,5 @@
 @file:OptIn(
-    ExperimentalMaterial3Api::class
+    ExperimentalMaterial3Api::class,
 )
 
 package dae.aevum.ui.composables.worklogs
@@ -70,7 +70,7 @@ fun WorklogCard(
     changeIssueId: (workId: Long) -> Unit = {},
     splitWorklog: (Long) -> Unit = {},
     incrementWorklogTime: (workId: Long, amount: Long) -> Unit = { _, _ -> },
-    decrementWorklogTime: (workId: Long, amount: Long) -> Unit = { _, _ -> }
+    decrementWorklogTime: (workId: Long, amount: Long) -> Unit = { _, _ -> },
 ) {
     var worklogTo by remember {
         mutableStateOf(worklogUiModel.to)
@@ -91,40 +91,55 @@ fun WorklogCard(
     }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(enabled = !worklogUiModel.active) {
-                Timber.v("Clicked on worklog")
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(enabled = !worklogUiModel.active) {
+                    Timber.v("Clicked on worklog")
 
-                if (!worklogUiModel.active) {
-                    onNavigate(worklogUiModel)
-                }
-            },
-        colors = CardDefaults.cardColors(
-            containerColor = if (worklogUiModel.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = if (worklogUiModel.active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-        )
+                    if (!worklogUiModel.active) {
+                        onNavigate(worklogUiModel)
+                    }
+                },
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (worklogUiModel.active) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                contentColor =
+                    if (worklogUiModel.active) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+            ),
     ) {
         Column {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
             ) {
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                 ) {
                     TimeLabel(from = worklogUiModel.from, to = worklogTo)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     if (worklogUiModel.active || worklogUiModel.pending) {
                         Text(
-                            text = stringResource(
-                                R.string.logging_to_x,
-                                worklogUiModel.issueId.value
-                            )
+                            text =
+                                stringResource(
+                                    R.string.logging_to_x,
+                                    worklogUiModel.issueId.value,
+                                ),
                         )
                     }
 
@@ -139,29 +154,31 @@ fun WorklogCard(
 
                 if (worklogUiModel.active) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .align(Alignment.CenterVertically)
+                        modifier =
+                            Modifier
+                                .fillMaxHeight()
+                                .align(Alignment.CenterVertically),
                     ) {
                         CircleButton(
                             active = true,
                             icon = Icons.Outlined.Done,
                             iconContentDescription = stringResource(R.string.stop_logging),
-                            activeColor = MaterialTheme.colorScheme.onPrimary
+                            activeColor = MaterialTheme.colorScheme.onPrimary,
                         ) {
                             stopLogging(worklogUiModel.workId)
                         }
                     }
                 } else if (worklogUiModel.pending) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .align(Alignment.CenterVertically)
+                        modifier =
+                            Modifier
+                                .fillMaxHeight()
+                                .align(Alignment.CenterVertically),
                     ) {
                         CircleButton(
                             active = false,
                             icon = Icons.Outlined.Clear,
-                            iconContentDescription = stringResource(R.string.delete_pending_worklog)
+                            iconContentDescription = stringResource(R.string.delete_pending_worklog),
                         ) {
                             deleteWorklog(worklogUiModel.workId)
                         }
@@ -170,15 +187,16 @@ fun WorklogCard(
             }
 
             WorklogCardControls(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                modifier =
+                    modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                 worklogUiModel = worklogUiModel,
                 active = worklogUiModel.active,
                 changeIssueId = changeIssueId,
                 splitWorklog = splitWorklog,
                 incrementWorklogTime = incrementWorklogTime,
-                decrementWorklogTime = decrementWorklogTime
+                decrementWorklogTime = decrementWorklogTime,
             )
         }
     }
@@ -202,27 +220,27 @@ private fun WorklogCardControls(
         val totalMinutes = max(duration.toMinutes(), 1L)
 
         Row(
-            modifier = modifier
+            modifier = modifier,
         ) {
             ChangeIssueButton(
                 worklogUiModel = worklogUiModel,
                 modifier = Modifier,
                 active = active,
-                changeIssueId = changeIssueId
+                changeIssueId = changeIssueId,
             )
             Spacer(modifier = Modifier.width(8.dp))
             IncrementWorklogTimeButton(
                 worklogUiModel = worklogUiModel,
                 modifier = Modifier,
                 active = active,
-                incrementWorklogTime = incrementWorklogTime
+                incrementWorklogTime = incrementWorklogTime,
             )
             Spacer(modifier = Modifier.width(8.dp))
             DecrementWorklogTimeButton(
                 worklogUiModel = worklogUiModel,
                 modifier = Modifier,
                 active = active,
-                decrementWorklogTime = decrementWorklogTime
+                decrementWorklogTime = decrementWorklogTime,
             )
 
             if (totalMinutes >= 5) {
@@ -231,7 +249,7 @@ private fun WorklogCardControls(
                     worklogUiModel = worklogUiModel,
                     modifier = Modifier,
                     active = active,
-                    splitWorklog = splitWorklog
+                    splitWorklog = splitWorklog,
                 )
             }
         }
@@ -250,7 +268,7 @@ fun ChangeIssueButton(
         active = active,
         icon = Icons.Outlined.Edit,
         iconContentDescription = stringResource(R.string.change_issue),
-        activeColor = MaterialTheme.colorScheme.onPrimary
+        activeColor = MaterialTheme.colorScheme.onPrimary,
     ) {
         changeIssueId(worklogUiModel.workId)
     }
@@ -269,7 +287,7 @@ fun IncrementWorklogTimeButton(
         active = active,
         icon = Icons.Outlined.MoreTime,
         iconContentDescription = stringResource(R.string.increment_worklog_time),
-        activeColor = MaterialTheme.colorScheme.onPrimary
+        activeColor = MaterialTheme.colorScheme.onPrimary,
     ) {
         incrementWorklogTime(worklogUiModel.workId, amount)
     }
@@ -288,7 +306,7 @@ fun DecrementWorklogTimeButton(
         active = active,
         icon = Icons.Outlined.KeyboardArrowDown,
         iconContentDescription = stringResource(R.string.decrement_worklog_time),
-        activeColor = MaterialTheme.colorScheme.onPrimary
+        activeColor = MaterialTheme.colorScheme.onPrimary,
     ) {
         decrementWorklogTime(worklogUiModel.workId, amount)
     }
@@ -299,14 +317,14 @@ fun SplitWorklogButton(
     @PreviewParameter(SampleWorklogUiModelProvider::class, 1) worklogUiModel: WorklogUiModel,
     modifier: Modifier = Modifier,
     active: Boolean,
-    splitWorklog: (Long) -> Unit = {}
+    splitWorklog: (Long) -> Unit = {},
 ) {
     CircleButton(
         modifier = modifier,
         active = active,
         icon = Icons.AutoMirrored.Outlined.CallSplit,
         iconContentDescription = stringResource(R.string.split),
-        activeColor = MaterialTheme.colorScheme.onPrimary
+        activeColor = MaterialTheme.colorScheme.onPrimary,
     ) {
         splitWorklog(worklogUiModel.workId)
     }
@@ -316,37 +334,38 @@ fun SplitWorklogButton(
 fun TimeLabel(
     modifier: Modifier = Modifier,
     from: Instant,
-    to: Instant
+    to: Instant,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
+        modifier =
+            modifier
+                .fillMaxWidth(),
     ) {
         Column {
             Row {
                 Text(
                     text = Formatters.universalDateFormatter.format(from),
-                    maxLines = 1
+                    maxLines = 1,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "•",
-                    maxLines = 1
+                    maxLines = 1,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = Formatters.universalTimeFormatter.format(from),
-                    maxLines = 1
+                    maxLines = 1,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "•",
-                    maxLines = 1
+                    maxLines = 1,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = Duration.between(from, to).human(),
-                    maxLines = 1
+                    maxLines = 1,
                 )
             }
         }
@@ -358,13 +377,13 @@ fun TimeLabel(
 fun WorklogDetails(
     @PreviewParameter(
         SampleWorklogUiModelProvider::class,
-        1
+        1,
     ) model: dae.aevum.ui.models.WorklogIssueUiModel,
     modifier: Modifier = Modifier,
     updateWorklog: (Long, Instant, Instant, String) -> Unit = { _, _, _, _ -> },
-    splitWorklog: (Long) -> Unit = {}
+    viewModel: WorklogViewModel = hiltViewModel(),
+    splitWorklog: (Long) -> Unit = {},
 ) {
-    val viewModel: WorklogViewModel = hiltViewModel()
     var summary by remember {
         mutableStateOf(model.comment)
     }
@@ -372,31 +391,35 @@ fun WorklogDetails(
 
     if (isUpdating) {
         Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .padding(16.dp),
+            contentAlignment = Alignment.Center,
         ) {
             CircularProgressIndicator()
         }
     } else {
         Column(
-            modifier = modifier
-                .fillMaxWidth()
+            modifier =
+                modifier
+                    .fillMaxWidth(),
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier =
+                    Modifier
+                        .fillMaxWidth(),
             ) {
                 OutlinedButton(
                     modifier = modifier,
                     onClick = {
                         updateWorklog(model.workId, model.from, model.to, summary)
-                    }) {
+                    },
+                ) {
                     Icon(
                         imageVector = Icons.Default.Done,
-                        contentDescription = stringResource(R.string.save)
+                        contentDescription = stringResource(R.string.save),
                     )
                     Text(text = stringResource(R.string.save))
                 }
@@ -405,10 +428,11 @@ fun WorklogDetails(
                     modifier = modifier,
                     onClick = {
                         splitWorklog(model.workId)
-                    }) {
+                    },
+                ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
-                        contentDescription = stringResource(R.string.split)
+                        contentDescription = stringResource(R.string.split),
                     )
                     Text(text = stringResource(R.string.split))
                 }
@@ -428,7 +452,7 @@ fun WorklogDetails(
                 },
                 label = {
                     Text(text = stringResource(R.string.summary))
-                }
+                },
             )
         }
     }

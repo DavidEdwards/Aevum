@@ -29,19 +29,37 @@ interface IssuesDao {
     suspend fun removeSorting(userId: Int)
 
     @Query("UPDATE issues SET sort = :sort WHERE id = :issueId AND userId = :userId")
-    suspend fun updateSortingFor(userId: Int, issueId: String, sort: Int)
+    suspend fun updateSortingFor(
+        userId: Int,
+        issueId: String,
+        sort: Int,
+    )
 
     @Query("SELECT * FROM issues WHERE id = :issueId AND userId = :userId")
-    suspend fun findIssueById(userId: Int, issueId: String): IssueEntity
+    suspend fun findIssueById(
+        userId: Int,
+        issueId: String,
+    ): IssueEntity
 
     @Query("SELECT COUNT(*) FROM issues WHERE id = :issueId AND userId = :userId")
-    suspend fun issueExists(userId: Int, issueId: String): Int
+    suspend fun issueExists(
+        userId: Int,
+        issueId: String,
+    ): Int
 
     @Query("SELECT * FROM issues WHERE id = :issueId AND userId = :userId")
-    fun flowIssueById(userId: Int, issueId: String): Flow<IssueEntity>
+    fun flowIssueById(
+        userId: Int,
+        issueId: String,
+    ): Flow<IssueEntity>
 
-    @Query("SELECT worklogs.*, issues.title AS issueTitle FROM issues, worklogs WHERE issues.id = worklogs.issueId AND worklogs.workId = :worklogId AND issues.userId = :userId")
-    fun flowWorklogById(userId: Int, worklogId: Long): Flow<WorklogIssue?>
+    @Query(
+        "SELECT worklogs.*, issues.title AS issueTitle FROM issues, worklogs WHERE issues.id = worklogs.issueId AND worklogs.workId = :worklogId AND issues.userId = :userId",
+    )
+    fun flowWorklogById(
+        userId: Int,
+        worklogId: Long,
+    ): Flow<WorklogIssue?>
 
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @RewriteQueriesToDropUnusedColumns
@@ -59,13 +77,19 @@ interface IssuesDao {
     suspend fun updateIssue(entity: IssueEntity)
 
     @Query("UPDATE issues SET pinned = NOT pinned WHERE id = :issueId AND userId = :userId")
-    suspend fun toggleIssuePin(userId: Int, issueId: String)
+    suspend fun toggleIssuePin(
+        userId: Int,
+        issueId: String,
+    )
 
     @Delete
     suspend fun deleteIssue(entity: IssueEntity)
 
     @Transaction
-    suspend fun refreshWith(userId: Int, entityList: List<IssueEntity>) {
+    suspend fun refreshWith(
+        userId: Int,
+        entityList: List<IssueEntity>,
+    ) {
         removeSorting(userId)
         addIssuesSafely(entityList)
 

@@ -3,17 +3,17 @@ package dae.aevum.network.models
 data class UserResponseRetro(
     val users: List<UserRetro>,
     val total: Int,
-    val header: String
+    val header: String,
 )
 
 data class UserRetro(
     val accountId: String,
     val accountType: String,
     val html: String,
-    val displayName: String
+    val displayName: String,
 )
 
-//{
+// {
 //    "users": [
 //    {
 //        "accountId": "1234567890",
@@ -24,4 +24,4 @@ data class UserRetro(
 //    ],
 //    "total": 1,
 //    "header": "Showing 1 of 1 matching users"
-//}
+// }

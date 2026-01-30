@@ -33,65 +33,55 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 class AevumModule {
-
     @Provides
     @Singleton
     fun provideDatabase(
-        @ApplicationContext applicationContext: Context
-    ): AppDatabase {
-        return Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java,
-            "database"
-        )
-            .fallbackToDestructiveMigration(true)
+        @ApplicationContext applicationContext: Context,
+    ): AppDatabase =
+        Room
+            .databaseBuilder(
+                applicationContext,
+                AppDatabase::class.java,
+                "database",
+            ).fallbackToDestructiveMigration(true)
             .addMigrations(Migration_9_10())
             .build()
-    }
 
     @Provides
     @Singleton
-    fun provideAuthInterceptor(
-        userRepository: UserRepository
-    ): AuthInterceptor {
-        return AuthInterceptor {
+    fun provideAuthInterceptor(userRepository: UserRepository): AuthInterceptor =
+        AuthInterceptor {
             userRepository.getActiveUser()
         }
-    }
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(
-        authInterceptor: AuthInterceptor
-    ): OkHttpClient {
-        return OkHttpClient.Builder()
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient =
+        OkHttpClient
+            .Builder()
             .addInterceptor(authInterceptor)
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                setLevel(HttpLoggingInterceptor.Level.BODY)
-            })
-            .build()
-    }
+            .addInterceptor(
+                HttpLoggingInterceptor().apply {
+                    setLevel(HttpLoggingInterceptor.Level.BODY)
+                },
+            ).build()
 
     @Provides
     @Singleton
-    fun provideRetrofit(
-        okHttpClient: OkHttpClient
-    ): JiraService {
-        val retrofit = Retrofit.Builder()
-            .baseUrl(Urls.BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .client(okHttpClient)
-            .build()
+    fun provideRetrofit(okHttpClient: OkHttpClient): JiraService {
+        val retrofit =
+            Retrofit
+                .Builder()
+                .baseUrl(Urls.BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(okHttpClient)
+                .build()
         return retrofit.create(JiraService::class.java)
     }
 
     @Provides
     @Singleton
-    fun provideJira(
-        service: JiraService
-    ): Jira {
-        return Jira(service)
-    }
+    fun provideJira(service: JiraService): Jira = Jira(service)
 
     @Provides
     @Singleton
@@ -99,24 +89,23 @@ class AevumModule {
         jira: Jira,
         userRepository: UserRepository,
         database: AppDatabase,
-        proofreader: Proofreader
-    ): JiraRepository {
-        return JiraRepositoryImpl(jira, userRepository, database, proofreader)
-    }
+        proofreader: Proofreader,
+    ): JiraRepository = JiraRepositoryImpl(jira, userRepository, database, proofreader)
 
     @Provides
     @Singleton
     fun provideProofreader(
 //        @ApplicationContext context: Context,
-        llama: LlamaProofreader
-    ): Proofreader = ChainedProofreader(
-        listOf(
+        llama: LlamaProofreader,
+    ): Proofreader =
+        ChainedProofreader(
+            listOf(
 //            // First pass on-device for privacy and speed
 //            MlKitProofreader(context),
-            // Second pass via your Llama server for extra polish
-            llama
+                // Second pass via your Llama server for extra polish
+                llama,
+            ),
         )
-    )
 
     @Provides
     @Singleton
@@ -126,24 +115,16 @@ class AevumModule {
     @Singleton
     fun provideAudioRepository(
         @ApplicationContext context: Context,
-        jiraRepository: JiraRepository
-    ): AudioRepository {
-        return AudioRepositoryImpl(context, jiraRepository)
-    }
+        jiraRepository: JiraRepository,
+    ): AudioRepository = AudioRepositoryImpl(context, jiraRepository)
 
     @Provides
     @Singleton
-    fun provideUserRepository(
-        database: AppDatabase
-    ): UserRepository {
-        return UserRepositoryImpl(database)
-    }
+    fun provideUserRepository(database: AppDatabase): UserRepository = UserRepositoryImpl(database)
 
     @Provides
     @Singleton
     fun provideWidgetRefresher(
-        @ApplicationContext context: Context
-    ): WidgetRefresher {
-        return WidgetRefresherImpl(context)
-    }
+        @ApplicationContext context: Context,
+    ): WidgetRefresher = WidgetRefresherImpl(context)
 }

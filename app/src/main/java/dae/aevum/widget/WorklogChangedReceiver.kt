@@ -13,7 +13,10 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 
 class WorklogChangedReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(
+        context: Context,
+        intent: Intent,
+    ) {
         if (intent.action == Intents.ACTION_WORKLOG_CHANGED) {
             Timber.d("WorklogChangedReceiver.onReceive: action=%s", intent.action)
             val pending = goAsync()
@@ -39,5 +42,3 @@ class WorklogChangedReceiver : BroadcastReceiver() {
         }
     }
 }
-
-

@@ -8,9 +8,9 @@ import androidx.compose.ui.text.withStyle
 fun highlightText(
     text: String,
     query: String = "",
-    span: SpanStyle
-): AnnotatedString {
-    return buildAnnotatedString {
+    span: SpanStyle,
+): AnnotatedString =
+    buildAnnotatedString {
         var start = 0
         while (text.indexOf(query, start, ignoreCase = true) != -1 && query.isNotBlank()) {
             val firstIndex = text.indexOf(query, start, true)
@@ -24,4 +24,3 @@ fun highlightText(
         append(text.substring(start, text.length))
         toAnnotatedString()
     }
-}

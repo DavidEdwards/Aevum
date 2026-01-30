@@ -44,10 +44,11 @@ fun StartStopLoggingButton(
             modifier = modifier,
             onClick = {
                 startLogging(issue)
-            }) {
+            },
+        ) {
             Icon(
                 imageVector = Icons.Default.PlayArrow,
-                contentDescription = stringResource(R.string.start_logging)
+                contentDescription = stringResource(R.string.start_logging),
             )
             Text(text = stringResource(R.string.start_logging))
         }
@@ -56,13 +57,15 @@ fun StartStopLoggingButton(
             modifier = modifier,
             onClick = {
                 stopLogging(activeIssue!!.worklog.workId)
-            }) {
+            },
+        ) {
             Icon(
                 imageVector = Icons.Default.Done,
-                contentDescription = stringResource(
-                    R.string.stop_logging_to,
-                    activeIssue!!.issue.id.value
-                )
+                contentDescription =
+                    stringResource(
+                        R.string.stop_logging_to,
+                        activeIssue!!.issue.id.value,
+                    ),
             )
             Text(text = stringResource(R.string.stop_logging_to, activeIssue!!.issue.id.value))
         }
@@ -77,18 +80,20 @@ fun CircleButton(
     iconContentDescription: String,
     activeColor: Color = MaterialTheme.colorScheme.primary,
     inactiveColor: Color = MaterialTheme.colorScheme.onSurface,
-    onButtonClick: () -> Unit
+    onButtonClick: () -> Unit,
 ) {
-    val color = if (active) {
-        activeColor
-    } else {
-        inactiveColor
-    }
-    val borderSize = if (active) {
-        3.dp
-    } else {
-        1.dp
-    }
+    val color =
+        if (active) {
+            activeColor
+        } else {
+            inactiveColor
+        }
+    val borderSize =
+        if (active) {
+            3.dp
+        } else {
+            1.dp
+        }
 
     OutlinedButton(
         modifier = modifier.size(48.dp),
@@ -98,11 +103,11 @@ fun CircleButton(
         onClick = {
             onButtonClick()
         },
-        shape = CircleShape
+        shape = CircleShape,
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = iconContentDescription
+            contentDescription = iconContentDescription,
         )
     }
 }

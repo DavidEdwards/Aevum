@@ -27,46 +27,89 @@ import javax.inject.Singleton
 
 interface JiraRepository {
     suspend fun getJiraAccountId(email: String): String
+
     suspend fun getIssues(): List<IssueEntity>
+
     fun flowIssues(): Flow<List<IssueEntity>>
+
     suspend fun refreshIssuesfromJira()
+
     suspend fun refreshWorklogsFor(issueId: IssueId)
+
     suspend fun refreshWorklogsToday()
+
     fun flowIssue(issueId: IssueId): Flow<IssueEntity>
+
     fun flowWorklog(worklogId: Long): Flow<WorklogIssue?>
+
     fun worklogsForIssue(issueId: IssueId): Flow<List<WorklogEntity>>
 
     suspend fun startLogFor(issueId: IssueId)
+
     fun flowActiveIssue(): Flow<ActiveIssueEntity?>
+
     suspend fun stopLogging(summary: String)
-    suspend fun stopLoggingFor(worklogId: Long, summary: String)
+
+    suspend fun stopLoggingFor(
+        worklogId: Long,
+        summary: String,
+    )
+
     suspend fun deleteWorklog(worklogId: Long)
+
     fun getPendingWorklogs(): Flow<List<WorklogEntity>>
+
     fun getWorklogsToday(): Flow<List<WorklogEntity>>
+
     fun getWorklogsTodayFromMe(): Flow<List<WorklogIssue>>
+
     fun getWorklogIssuesInLastTwoWeeks(): Flow<List<WorklogIssue>>
+
     suspend fun postPendingWorklogs(): List<WorklogEntity>
-    suspend fun updateWorklog(worklogId: Long, from: Instant, to: Instant, summary: String)
-    suspend fun incrementWorklogTime(worklogId: Long, amount: Long)
-    suspend fun decrementWorklogTime(worklogId: Long, amount: Long)
-    suspend fun moveWorklogIssue(worklogId: Long, issueId: IssueId)
+
+    suspend fun updateWorklog(
+        worklogId: Long,
+        from: Instant,
+        to: Instant,
+        summary: String,
+    )
+
+    suspend fun incrementWorklogTime(
+        worklogId: Long,
+        amount: Long,
+    )
+
+    suspend fun decrementWorklogTime(
+        worklogId: Long,
+        amount: Long,
+    )
+
+    suspend fun moveWorklogIssue(
+        worklogId: Long,
+        issueId: IssueId,
+    )
+
     suspend fun splitWorklog(
         worklogId: Long,
         newIssueId: IssueId,
         splitAt: Instant,
-        withNewId: suspend (Long) -> Unit = {}
+        withNewId: suspend (Long) -> Unit = {},
     ): Boolean
 
     suspend fun toggleIssuePin(issueId: IssueId)
+
     suspend fun testUser(
         instanceUrl: String,
         user: String,
-        token: String
+        token: String,
     ): Boolean
 
     suspend fun refreshWorklogsForLastTwoWeeks()
-    
-    suspend fun getLatestIssuesForProject(projectKey: String, maxResults: Int = 1000): List<IssueEntity>
+
+    suspend fun getLatestIssuesForProject(
+        projectKey: String,
+        maxResults: Int = 1000,
+    ): List<IssueEntity>
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -75,61 +118,65 @@ class JiraRepositoryImpl(
     private val jira: Jira,
     private val userRepository: UserRepository,
     private val database: AppDatabase,
-    private val proofreader: Proofreader
+    private val proofreader: Proofreader,
 ) : JiraRepository {
-
-    override suspend fun getJiraAccountId(email: String): String {
-        return jira.getJiraAccount(email).accountId
-    }
+    override suspend fun getJiraAccountId(email: String): String = jira.getJiraAccount(email).accountId
 
     override suspend fun getIssues(): List<IssueEntity> {
-        val user = userRepository.getActiveUser()
-            ?: return emptyList()
+        val user =
+            userRepository.getActiveUser()
+                ?: return emptyList()
 
         return database.issueDao().getAllIssues(user.id)
     }
 
-    override fun flowIssues() = userRepository.flowActiveUser().flatMapLatest { user ->
-        if (user == null) return@flatMapLatest emptyFlow()
-        database.issueDao().flowAllIssues(user.id)
-    }
-
-    override suspend fun refreshIssuesfromJira() = supervisorScope {
-        return@supervisorScope try {
-            val user = userRepository.getActiveUser()
-                ?: return@supervisorScope
-
-            yield()
-
-            val searches = listOf(
-                "key in issueHistory() ORDER BY lastViewed DESC",
-                "worklogAuthor = currentUser() ORDER BY lastViewed DESC",
-                "assignee = currentUser() ORDER BY lastViewed DESC"
-            )
-
-            val entityList = jira.searchIssues(user.id, searches)
-
-            database.issueDao().refreshWith(user.id, entityList)
-        } catch (e: Exception) {
-            Timber.e(e)
+    override fun flowIssues() =
+        userRepository.flowActiveUser().flatMapLatest { user ->
+            if (user == null) return@flatMapLatest emptyFlow()
+            database.issueDao().flowAllIssues(user.id)
         }
-    }
+
+    override suspend fun refreshIssuesfromJira() =
+        supervisorScope {
+            return@supervisorScope try {
+                val user =
+                    userRepository.getActiveUser()
+                        ?: return@supervisorScope
+
+                yield()
+
+                val searches =
+                    listOf(
+                        "key in issueHistory() ORDER BY lastViewed DESC",
+                        "worklogAuthor = currentUser() ORDER BY lastViewed DESC",
+                        "assignee = currentUser() ORDER BY lastViewed DESC",
+                    )
+
+                val entityList = jira.searchIssues(user.id, searches)
+
+                database.issueDao().refreshWith(user.id, entityList)
+            } catch (e: Exception) {
+                Timber.e(e)
+            }
+        }
 
     override suspend fun refreshWorklogsFor(issueId: IssueId) {
         try {
-            val user = userRepository.getActiveUser()
-                ?: return
+            val user =
+                userRepository.getActiveUser()
+                    ?: return
 
             // Ensure the issue exists in the database
             ensureIssueExists(user.id, issueId)
 
             yield()
-            val entities = withContext(Dispatchers.IO) {
-                jira.refreshWorklogsFor(
-                    issueId,
-                    user
-                )
-            }
+            val entities =
+                withContext(Dispatchers.IO) {
+                    jira.refreshWorklogsFor(
+                        issueId,
+                        user,
+                    )
+                }
 
             yield()
             if (entities.isNotEmpty()) {
@@ -142,13 +189,15 @@ class JiraRepositoryImpl(
 
     override suspend fun refreshWorklogsToday() {
         try {
-            val user = userRepository.getActiveUser()
-                ?: return
+            val user =
+                userRepository.getActiveUser()
+                    ?: return
 
             yield()
-            val entities = withContext(Dispatchers.IO) {
-                jira.refreshWorklogsToday(user)
-            }
+            val entities =
+                withContext(Dispatchers.IO) {
+                    jira.refreshWorklogsToday(user)
+                }
 
             yield()
             if (entities.isNotEmpty()) {
@@ -165,7 +214,10 @@ class JiraRepositoryImpl(
         }
     }
 
-    private suspend fun ensureIssueExists(userId: Int, issueId: IssueId) {
+    private suspend fun ensureIssueExists(
+        userId: Int,
+        issueId: IssueId,
+    ) {
         try {
             val exists = database.issueDao().issueExists(userId, issueId.value)
             if (exists == 0) {
@@ -197,15 +249,12 @@ class JiraRepositoryImpl(
         }
     }
 
-    override fun worklogsForIssue(issueId: IssueId): Flow<List<WorklogEntity>> {
-        return database.worklogDao().flowWorkByIssueId(issueId.value)
-    }
+    override fun worklogsForIssue(issueId: IssueId): Flow<List<WorklogEntity>> = database.worklogDao().flowWorkByIssueId(issueId.value)
 
-    override suspend fun startLogFor(
-        issueId: IssueId
-    ) {
-        val user = userRepository.getActiveUser()
-            ?: return
+    override suspend fun startLogFor(issueId: IssueId) {
+        val user =
+            userRepository.getActiveUser()
+                ?: return
 
         val now = Instant.now()
         database.worklogDao().addWork(
@@ -219,8 +268,8 @@ class JiraRepositoryImpl(
                 author = "Pending",
                 summary = "",
                 pending = true,
-                active = true
-            )
+                active = true,
+            ),
         )
     }
 
@@ -240,25 +289,30 @@ class JiraRepositoryImpl(
         val now = Instant.now()
         val mostRecent = activeForUser.maxByOrNull { it.from }
         Timber.v("Proofreading: $summary")
-        val refinedSummary = try {
-            if (summary.isBlank()) summary else proofreader.proofread(summary)
-        } catch (e: Exception) {
-            Timber.w(e, "Proofreading failed; using original summary")
-            summary
-        }
+        val refinedSummary =
+            try {
+                if (summary.isBlank()) summary else proofreader.proofread(summary)
+            } catch (e: Exception) {
+                Timber.w(e, "Proofreading failed; using original summary")
+                summary
+            }
         Timber.v("Proofreading refined: $refinedSummary")
 
         activeForUser.forEach { entity ->
-            val updated = entity.copy(
-                active = false,
-                to = now,
-                summary = if (entity.workId == mostRecent?.workId) refinedSummary else entity.summary
-            )
+            val updated =
+                entity.copy(
+                    active = false,
+                    to = now,
+                    summary = if (entity.workId == mostRecent?.workId) refinedSummary else entity.summary,
+                )
             database.worklogDao().updateWork(updated)
         }
     }
 
-    override suspend fun stopLoggingFor(worklogId: Long, summary: String) {
+    override suspend fun stopLoggingFor(
+        worklogId: Long,
+        summary: String,
+    ) {
         val user = userRepository.getActiveUser() ?: return
         val allWorks = database.worklogDao().getAllWorks()
         val target =
@@ -267,19 +321,21 @@ class JiraRepositoryImpl(
 
         val now = Instant.now()
         Timber.v("Proofreading: $summary")
-        val refinedSummary = try {
-            if (summary.isBlank()) summary else proofreader.proofread(summary)
-        } catch (e: Exception) {
-            Timber.w(e, "Proofreading failed; using original summary")
-            summary
-        }
+        val refinedSummary =
+            try {
+                if (summary.isBlank()) summary else proofreader.proofread(summary)
+            } catch (e: Exception) {
+                Timber.w(e, "Proofreading failed; using original summary")
+                summary
+            }
         Timber.v("Proofreading refined: $refinedSummary")
 
-        val updated = target.copy(
-            active = false,
-            to = now,
-            summary = refinedSummary
-        )
+        val updated =
+            target.copy(
+                active = false,
+                to = now,
+                summary = refinedSummary,
+            )
         database.worklogDao().updateWork(updated)
     }
 
@@ -300,12 +356,17 @@ class JiraRepositoryImpl(
             user ?: return@flatMapLatest emptyFlow()
 
             val dayStart = LocalDate.now().atStartOfDay().toInstant(ZoneOffset.UTC)
-            val dayEnd = LocalDate.now().atStartOfDay().plusHours(24).toInstant(ZoneOffset.UTC)
+            val dayEnd =
+                LocalDate
+                    .now()
+                    .atStartOfDay()
+                    .plusHours(24)
+                    .toInstant(ZoneOffset.UTC)
 
             return@flatMapLatest database.worklogDao().flowWorklogsToday(
                 userId = user.id,
                 dayStart = dayStart,
-                dayEnd = dayEnd
+                dayEnd = dayEnd,
             )
         }
     }
@@ -315,13 +376,18 @@ class JiraRepositoryImpl(
             user ?: return@flatMapLatest emptyFlow()
 
             val dayStart = LocalDate.now().atStartOfDay().toInstant(ZoneOffset.UTC)
-            val dayEnd = LocalDate.now().atStartOfDay().plusHours(24).toInstant(ZoneOffset.UTC)
+            val dayEnd =
+                LocalDate
+                    .now()
+                    .atStartOfDay()
+                    .plusHours(24)
+                    .toInstant(ZoneOffset.UTC)
 
             return@flatMapLatest database.worklogDao().getWorklogIssuesTodayFromMe(
                 userId = user.id,
                 dayStart = dayStart,
                 dayEnd = dayEnd,
-                jiraUserAccountId = user.jiraUserAccountId
+                jiraUserAccountId = user.jiraUserAccountId,
             )
         }
     }
@@ -329,55 +395,81 @@ class JiraRepositoryImpl(
     override fun getWorklogIssuesInLastTwoWeeks(): Flow<List<WorklogIssue>> {
         return userRepository.flowActiveUser().flatMapLatest { user ->
             user ?: return@flatMapLatest emptyFlow()
-            val end = LocalDate.now().atStartOfDay().plusHours(24).toInstant(ZoneOffset.UTC)
-            val start = LocalDate.now().minusDays(13).atStartOfDay().toInstant(ZoneOffset.UTC)
+            val end =
+                LocalDate
+                    .now()
+                    .atStartOfDay()
+                    .plusHours(24)
+                    .toInstant(ZoneOffset.UTC)
+            val start =
+                LocalDate
+                    .now()
+                    .minusDays(13)
+                    .atStartOfDay()
+                    .toInstant(ZoneOffset.UTC)
             return@flatMapLatest database.worklogDao().getWorklogIssuesInRangeFromMe(
                 userId = user.id,
                 rangeStart = start,
                 rangeEnd = end,
-                jiraUserAccountId = user.jiraUserAccountId
+                jiraUserAccountId = user.jiraUserAccountId,
             )
         }
     }
 
-    override suspend fun postPendingWorklogs(): List<WorklogEntity> = supervisorScope {
-        val worklogs = getPendingWorklogs().firstOrNull()
-            ?.filter { !it.active }
-            ?: emptyList()
+    override suspend fun postPendingWorklogs(): List<WorklogEntity> =
+        supervisorScope {
+            val worklogs =
+                getPendingWorklogs()
+                    .firstOrNull()
+                    ?.filter { !it.active }
+                    ?: emptyList()
 
-        yield()
-        val updatedWorklogs = worklogs.map { worklog ->
-            async(Dispatchers.IO) {
-                jira.updateWorklog(worklog)
+            yield()
+            val updatedWorklogs =
+                worklogs
+                    .map { worklog ->
+                        async(Dispatchers.IO) {
+                            jira.updateWorklog(worklog)
+                        }
+                    }.awaitAll()
+
+            database.worklogDao().updateWorklogs(updatedWorklogs)
+
+            // Now we can remove non-pending and update from Jira
+            val noLongerPendingWorklogs = updatedWorklogs.filter { it.pending.not() }
+            noLongerPendingWorklogs.forEach {
+                database.worklogDao().deleteWork(it)
             }
-        }.awaitAll()
 
-        database.worklogDao().updateWorklogs(updatedWorklogs)
+            val issuesWithNewUpdates = noLongerPendingWorklogs.map { it.issueId }.distinct()
+            issuesWithNewUpdates.forEach {
+                refreshWorklogsFor(it)
+            }
 
-        // Now we can remove non-pending and update from Jira
-        val noLongerPendingWorklogs = updatedWorklogs.filter { it.pending.not() }
-        noLongerPendingWorklogs.forEach {
-            database.worklogDao().deleteWork(it)
+            updatedWorklogs
         }
-
-        val issuesWithNewUpdates = noLongerPendingWorklogs.map { it.issueId }.distinct()
-        issuesWithNewUpdates.forEach {
-            refreshWorklogsFor(it)
-        }
-
-        updatedWorklogs
-    }
 
     override suspend fun refreshWorklogsForLastTwoWeeks() {
         try {
             val user = userRepository.getActiveUser() ?: return
 
-            val end = LocalDate.now().atStartOfDay().plusHours(24).toInstant(ZoneOffset.UTC)
-            val start = LocalDate.now().minusDays(13).atStartOfDay().toInstant(ZoneOffset.UTC)
+            val end =
+                LocalDate
+                    .now()
+                    .atStartOfDay()
+                    .plusHours(24)
+                    .toInstant(ZoneOffset.UTC)
+            val start =
+                LocalDate
+                    .now()
+                    .minusDays(13)
+                    .atStartOfDay()
+                    .toInstant(ZoneOffset.UTC)
 
-            val entities = withContext(Dispatchers.IO) {
-                jira.refreshWorklogsInRange(user, start, end)
-            }
+            val entities =
+                withContext(Dispatchers.IO) {
+                    jira.refreshWorklogsInRange(user, start, end)
+                }
 
             if (entities.isNotEmpty()) {
                 val issueIds = entities.map { it.issueId }.distinct()
@@ -395,7 +487,7 @@ class JiraRepositoryImpl(
         worklogId: Long,
         from: Instant,
         to: Instant,
-        summary: String
+        summary: String,
     ) {
         // Validate inputs
         if (worklogId <= 0) {
@@ -408,29 +500,32 @@ class JiraRepositoryImpl(
             throw IllegalArgumentException("Summary cannot be blank")
         }
 
-        val entity = database.worklogDao().findWorkById(worklogId)
-            ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
+        val entity =
+            database.worklogDao().findWorkById(worklogId)
+                ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
 
         Timber.v("Proofreading: $summary")
-        val refinedSummary = try {
-            if (summary.isBlank()) summary else proofreader.proofread(summary)
-        } catch (e: Exception) {
-            Timber.w(e, "Proofreading failed; using original summary")
-            summary
-        }
+        val refinedSummary =
+            try {
+                if (summary.isBlank()) summary else proofreader.proofread(summary)
+            } catch (e: Exception) {
+                Timber.w(e, "Proofreading failed; using original summary")
+                summary
+            }
         Timber.v("Proofreading refined: $refinedSummary")
 
-        val newEntity = entity.copy(
-            from = from,
-            to = to,
-            summary = refinedSummary
-        )
+        val newEntity =
+            entity.copy(
+                from = from,
+                to = to,
+                summary = refinedSummary,
+            )
         database.worklogDao().updateWork(newEntity)
     }
 
     override suspend fun incrementWorklogTime(
         worklogId: Long,
-        amount: Long
+        amount: Long,
     ) {
         // Validate inputs
         if (worklogId <= 0) {
@@ -440,23 +535,25 @@ class JiraRepositoryImpl(
             throw IllegalArgumentException("Amount must be positive: $amount")
         }
 
-        val entity = database.worklogDao().findWorkById(worklogId)
-            ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
+        val entity =
+            database.worklogDao().findWorkById(worklogId)
+                ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
 
         var newInstant = entity.from.minusMillis(amount)
         if (newInstant.isAfter(Instant.now())) {
             newInstant = Instant.now().plusSeconds(1)
         }
 
-        val newEntity = entity.copy(
-            from = newInstant
-        )
+        val newEntity =
+            entity.copy(
+                from = newInstant,
+            )
         database.worklogDao().updateWork(newEntity)
     }
 
     override suspend fun decrementWorklogTime(
         worklogId: Long,
-        amount: Long
+        amount: Long,
     ) {
         // Validate inputs
         if (worklogId <= 0) {
@@ -466,30 +563,34 @@ class JiraRepositoryImpl(
             throw IllegalArgumentException("Amount must be positive: $amount")
         }
 
-        val entity = database.worklogDao().findWorkById(worklogId)
-            ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
+        val entity =
+            database.worklogDao().findWorkById(worklogId)
+                ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
 
         var newInstant = entity.from.plusMillis(amount)
         if (newInstant.isAfter(Instant.now())) {
             newInstant = Instant.now().minusSeconds(1)
         }
 
-        val newEntity = entity.copy(
-            from = newInstant
-        )
+        val newEntity =
+            entity.copy(
+                from = newInstant,
+            )
         database.worklogDao().updateWork(newEntity)
     }
 
     override suspend fun moveWorklogIssue(
         worklogId: Long,
-        issueId: IssueId
+        issueId: IssueId,
     ) {
-        val entity = database.worklogDao().findWorkById(worklogId)
-            ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
+        val entity =
+            database.worklogDao().findWorkById(worklogId)
+                ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
 
-        val newEntity = entity.copy(
-            issueId = issueId
-        )
+        val newEntity =
+            entity.copy(
+                issueId = issueId,
+            )
         database.worklogDao().updateWork(newEntity)
     }
 
@@ -497,14 +598,17 @@ class JiraRepositoryImpl(
         worklogId: Long,
         newIssueId: IssueId,
         splitAt: Instant,
-        withNewId: suspend (Long) -> Unit
+        withNewId: suspend (Long) -> Unit,
     ): Boolean {
         try {
-            val entity = database.worklogDao().findWorkById(worklogId)
-                ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
+            val entity =
+                database.worklogDao().findWorkById(worklogId)
+                    ?: throw IllegalArgumentException("Worklog not found with ID: $worklogId")
 
             if (!entity.pending || entity.active) {
-                Timber.e("Tried to split either a worklog that is already sent or an active log. Only non-active, pending logs can be split.")
+                Timber.e(
+                    "Tried to split either a worklog that is already sent or an active log. Only non-active, pending logs can be split.",
+                )
                 return false
             }
 
@@ -514,15 +618,17 @@ class JiraRepositoryImpl(
                 return false
             }
 
-            val firstEntity = entity.copy(
-                to = splitAt
-            )
-            val secondEntity = entity.copy(
-                workId = 0,
-                issueId = newIssueId,
-                from = splitAt,
-                summary = ""
-            )
+            val firstEntity =
+                entity.copy(
+                    to = splitAt,
+                )
+            val secondEntity =
+                entity.copy(
+                    workId = 0,
+                    issueId = newIssueId,
+                    from = splitAt,
+                    summary = "",
+                )
 
             val id = database.worklogDao().splitWork(firstEntity, secondEntity)
 
@@ -537,7 +643,6 @@ class JiraRepositoryImpl(
 
             withNewId(id)
             return true
-
         } catch (e: Exception) {
             Timber.e(e, "Exception during splitWorklog operation for worklogId: $worklogId")
             return false
@@ -545,8 +650,9 @@ class JiraRepositoryImpl(
     }
 
     override suspend fun toggleIssuePin(issueId: IssueId) {
-        val user = userRepository.getActiveUser()
-            ?: return
+        val user =
+            userRepository.getActiveUser()
+                ?: return
 
         database.issueDao().toggleIssuePin(user.id, issueId.value)
     }
@@ -554,32 +660,36 @@ class JiraRepositoryImpl(
     override suspend fun testUser(
         instanceUrl: String,
         user: String,
-        token: String
+        token: String,
     ): Boolean {
-        val authorizationToken = Base64.encodeToString(
-            "${user}:${token}".toByteArray(),
-            Base64.NO_WRAP
-        )
+        val authorizationToken =
+            Base64.encodeToString(
+                "$user:$token".toByteArray(),
+                Base64.NO_WRAP,
+            )
 
         return jira.testUser(instanceUrl, "Basic $authorizationToken")
     }
 
-    override suspend fun getLatestIssuesForProject(projectKey: String, maxResults: Int): List<IssueEntity> {
+    override suspend fun getLatestIssuesForProject(
+        projectKey: String,
+        maxResults: Int,
+    ): List<IssueEntity> {
         return try {
             val user = userRepository.getActiveUser() ?: return emptyList()
-            
+
             val jql = "project = $projectKey ORDER BY created DESC"
             val issues = jira.searchIssues(user.id, listOf(jql))
-            
+
             // Filter to only return the requested number of results
             val limitedIssues = issues.take(maxResults)
-            
+
             // Save the issues to the database
             if (limitedIssues.isNotEmpty()) {
                 database.issueDao().addIssues(limitedIssues)
                 Timber.v("Saved ${limitedIssues.size} issues for project $projectKey to database")
             }
-            
+
             limitedIssues
         } catch (e: Exception) {
             Timber.e(e, "Error getting latest issues for project $projectKey")

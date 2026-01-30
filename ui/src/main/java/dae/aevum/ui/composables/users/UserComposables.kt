@@ -35,42 +35,47 @@ fun UserCard(
     deleteUser: (Int) -> Unit = {},
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth(),
         onClick = {
             Timber.v("Clicked on user ${model.id}")
             selectUser(model.id)
         },
-        colors = CardDefaults.cardColors(
-            containerColor = if (model.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = if (model.active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        colors =
+            CardDefaults.cardColors(
+                containerColor = if (model.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = if (model.active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .align(Alignment.CenterVertically)
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .align(Alignment.CenterVertically),
             ) {
                 Text(
-                    text = model.user
+                    text = model.user,
                 )
             }
 
             Box(
-                modifier = Modifier
-                    .align(Alignment.CenterVertically)
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterVertically),
             ) {
                 CircleButton(
                     active = model.active,
                     icon = Icons.Outlined.Clear,
                     iconContentDescription = stringResource(R.string.delete_pending_worklog),
                     inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    activeColor = MaterialTheme.colorScheme.onPrimary
+                    activeColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
                     Timber.v("Deleting user ${model.id}")
                     deleteUser(model.id)

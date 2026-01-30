@@ -25,16 +25,17 @@ fun UserListScreen(
     val userModels by viewModel.users.collectAsState(initial = emptyList())
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-            .verticalScroll(state = rememberScrollState())
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+                .verticalScroll(state = rememberScrollState()),
     ) {
         userModels.forEach { model ->
             UserCard(
                 model = model,
                 selectUser = selectUser,
-                deleteUser = deleteUser
+                deleteUser = deleteUser,
             )
             Spacer(modifier = Modifier.height(8.dp))
         }

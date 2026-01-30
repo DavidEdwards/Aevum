@@ -10,7 +10,7 @@ import dae.aevum.utils.IssueId
 data class IssueUiModel(
     val id: IssueId,
     val title: AnnotatedString,
-    val pinned: Boolean
+    val pinned: Boolean,
 ) {
     companion object {
         fun fromEntity(
@@ -19,20 +19,21 @@ data class IssueUiModel(
             pinned: Boolean = false,
             highlightColors: HighlightColors? = null,
         ): IssueUiModel {
-            val highlightAnnotated = if (highlight != null && highlightColors != null) {
-                highlightText(
-                    text = entity.title,
-                    query = highlight,
-                    span = highlightSpanStyle(highlightColors)
-                )
-            } else {
-                AnnotatedString(entity.title)
-            }
+            val highlightAnnotated =
+                if (highlight != null && highlightColors != null) {
+                    highlightText(
+                        text = entity.title,
+                        query = highlight,
+                        span = highlightSpanStyle(highlightColors),
+                    )
+                } else {
+                    AnnotatedString(entity.title)
+                }
 
             return IssueUiModel(
                 id = entity.id,
                 title = highlightAnnotated,
-                pinned = pinned
+                pinned = pinned,
             )
         }
     }

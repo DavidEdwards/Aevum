@@ -5,7 +5,8 @@ import java.time.format.DateTimeFormatter
 
 object Formatters {
     val universalDateFormatter: DateTimeFormatter by lazy {
-        DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        DateTimeFormatter
+            .ofPattern("yyyy-MM-dd")
             .withZone(ZoneId.systemDefault())
     }
     val universalDateTimeZoneFormatter: DateTimeFormatter by lazy {
@@ -13,7 +14,8 @@ object Formatters {
     }
 
     val universalTimeFormatter: DateTimeFormatter by lazy {
-        DateTimeFormatter.ofPattern("kk:mm")
+        DateTimeFormatter
+            .ofPattern("kk:mm")
             .withZone(ZoneId.systemDefault())
     }
 }

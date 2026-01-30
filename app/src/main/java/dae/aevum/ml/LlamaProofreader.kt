@@ -21,89 +21,97 @@ import java.util.concurrent.TimeUnit
 class LlamaProofreader(
     private val endpointUrl: String = "http://192.168.1.9:11434/api/chat",
     private val model: String = "gemma3:4b",
-    private val httpClient: OkHttpClient = OkHttpClient.Builder()
-        .callTimeout(10, TimeUnit.SECONDS)
-        .connectTimeout(3, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .build()
+    private val httpClient: OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .callTimeout(10, TimeUnit.SECONDS)
+            .connectTimeout(3, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build(),
 ) : Proofreader {
+    override suspend fun proofread(text: String): String =
+        withContext(Dispatchers.IO) {
+            if (text.isBlank()) return@withContext text
 
-    override suspend fun proofread(text: String): String = withContext(Dispatchers.IO) {
-        if (text.isBlank()) return@withContext text
+            val systemPrompt = buildSystemPrompt()
+            val userContent = text
 
-        val systemPrompt = buildSystemPrompt()
-        val userContent = text
+            // Ollama chat API expects top-level "system" and a messages array of user/assistant turns.
+            // Some versions accept a system message inside messages, but others return 400 for that.
+            // Use top-level "system" for broad compatibility.
+            val json =
+                JSONObject()
+                    .put("model", model)
+                    .put(
+                        "messages",
+                        JSONArray().put(
+                            JSONObject()
+                                .put("role", "user")
+                                .put("content", systemPrompt + userContent),
+                        ),
+                    ).put("options", JSONObject().put("temperature", 0.2))
+                    .put("stream", false)
 
-        // Ollama chat API expects top-level "system" and a messages array of user/assistant turns.
-        // Some versions accept a system message inside messages, but others return 400 for that.
-        // Use top-level "system" for broad compatibility.
-        val json = JSONObject()
-            .put("model", model)
-            .put(
-                "messages",
-                JSONArray().put(
-                    JSONObject()
-                        .put("role", "user")
-                        .put("content", systemPrompt + userContent)
-                )
-            )
-            .put("options", JSONObject().put("temperature", 0.2))
-            .put("stream", false)
+            val request =
+                Request
+                    .Builder()
+                    .url(endpointUrl)
+                    .addHeader("Accept", "application/json")
+                    .post(json.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+                    .build()
 
-        val request = Request.Builder()
-            .url(endpointUrl)
-            .addHeader("Accept", "application/json")
-            .post(json.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-            .build()
-
-        try {
-            Timber.v("LlamaProofreader: Sending request to %s with model %s", endpointUrl, model)
-            httpClient.newCall(request).execute().use { response ->
-                Timber.v("LlamaProofreader: Received response with code %d", response.code)
-                val body = response.body?.string().orEmpty()
-                if (!response.isSuccessful) {
-                    val errorPreview = if (body.length > 500) body.take(500) + "..." else body
-                    Timber.e(
-                        "LlamaProofreader: HTTP %d from server. Body: %s",
-                        response.code,
-                        errorPreview
-                    )
-                    // Try to extract standardized error message
-                    try {
-                        val err = JSONObject(body).optString("error").takeIf { it.isNotBlank() }
-                        if (err != null) {
-                            Timber.e("LlamaProofreader: Server error: %s", err)
+            try {
+                Timber.v("LlamaProofreader: Sending request to %s with model %s", endpointUrl, model)
+                httpClient.newCall(request).execute().use { response ->
+                    Timber.v("LlamaProofreader: Received response with code %d", response.code)
+                    val body = response.body?.string().orEmpty()
+                    if (!response.isSuccessful) {
+                        val errorPreview = if (body.length > 500) body.take(500) + "..." else body
+                        Timber.e(
+                            "LlamaProofreader: HTTP %d from server. Body: %s",
+                            response.code,
+                            errorPreview,
+                        )
+                        // Try to extract standardized error message
+                        try {
+                            val err = JSONObject(body).optString("error").takeIf { it.isNotBlank() }
+                            if (err != null) {
+                                Timber.e("LlamaProofreader: Server error: %s", err)
+                            }
+                        } catch (_: Throwable) {
+                            // ignore JSON error parsing
                         }
-                    } catch (_: Throwable) {
-                        // ignore JSON error parsing
+                        return@use
                     }
-                    return@use
+                    Timber.v("LlamaProofreader: Response body length %d", body.length)
+                    if (body.isBlank()) return@use
+
+                    val root = JSONObject(body)
+                    val message = root.optJSONObject("message")
+                    val content = message?.optString("content")?.trim()
+                    Timber.v("LlamaProofreader: Extracted content: %s", content)
+                    if (!content.isNullOrBlank()) {
+                        return@withContext finalizeOutput(
+                            text,
+                            sanitizeOutput(content),
+                        )
+                    }
+                    // Fallback to generate API shape if chat isn't available
+                    val genResponse = root.optString("response").trim()
+                    if (genResponse.isNotBlank()) {
+                        return@withContext finalizeOutput(
+                            text,
+                            sanitizeOutput(genResponse),
+                        )
+                    }
                 }
-                Timber.v("LlamaProofreader: Response body length %d", body.length)
-                if (body.isBlank()) return@use
-
-                val root = JSONObject(body)
-                val message = root.optJSONObject("message")
-                val content = message?.optString("content")?.trim()
-                Timber.v("LlamaProofreader: Extracted content: %s", content)
-                if (!content.isNullOrBlank()) return@withContext finalizeOutput(
-                    text,
-                    sanitizeOutput(content)
-                )
-                // Fallback to generate API shape if chat isn't available
-                val genResponse = root.optString("response").trim()
-                if (genResponse.isNotBlank()) return@withContext finalizeOutput(
-                    text,
-                    sanitizeOutput(genResponse)
-                )
+            } catch (e: Throwable) {
+                Timber.e(e, "LlamaProofreader: Error during proofreading, returning original text")
+                // Swallow and fall back to original text
             }
-        } catch (e: Throwable) {
-            Timber.e(e, "LlamaProofreader: Error during proofreading, returning original text")
-            // Swallow and fall back to original text
-        }
 
-        text
-    }
+            text
+        }
 
     private fun buildSystemPrompt(): String =
         """
@@ -129,9 +137,14 @@ class LlamaProofreader(
     private fun sanitizeOutput(modelOutput: String): String {
         // Remove surrounding quotes if present and trim whitespace
         var out = modelOutput.trim()
-        if (out.length >= 2 && ((out.startsWith('"') && out.endsWith('"')) || (out.startsWith('\'') && out.endsWith(
-                '\''
-            )))
+        if (out.length >= 2 && (
+                (out.startsWith('"') && out.endsWith('"')) || (
+                    out.startsWith('\'') &&
+                        out.endsWith(
+                            '\'',
+                        )
+                )
+            )
         ) {
             out = out.substring(1, out.length - 1).trim()
         }
@@ -142,7 +155,10 @@ class LlamaProofreader(
         return firstNonEmptyLine ?: out
     }
 
-    private fun finalizeOutput(original: String, candidate: String): String {
+    private fun finalizeOutput(
+        original: String,
+        candidate: String,
+    ): String {
         val trimmedOriginal = original.trim()
         var trimmedCandidate = candidate.trim()
 

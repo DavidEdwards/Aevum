@@ -11,5 +11,5 @@ data class IssueEntity(
     val userId: Int,
     val title: String,
     val pinned: Boolean,
-    val sort: Int
+    val sort: Int,
 )

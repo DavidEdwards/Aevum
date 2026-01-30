@@ -20,5 +20,5 @@ data class WorklogIssue(
     val summary: String,
     val pending: Boolean,
     val active: Boolean,
-    var issueTitle: String
+    var issueTitle: String,
 )

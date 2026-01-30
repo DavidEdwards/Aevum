@@ -32,7 +32,7 @@ fun IssueListScreen(
     modifier: Modifier = Modifier,
     viewModel: IssueViewModel = hiltViewModel(),
     onNavigateToIssue: (IssueId) -> Unit,
-    onTogglePinIssue: (IssueId) -> Unit = {}
+    onTogglePinIssue: (IssueId) -> Unit = {},
 ) {
     val activeUser by viewModel.activeUser.collectAsState(initial = null)
     if (activeUser == null) {
@@ -49,7 +49,7 @@ fun IssueListScreen(
         modifier = modifier,
         viewModel = viewModel,
         onIssueSelected = onNavigateToIssue,
-        onTogglePinIssue = onTogglePinIssue
+        onTogglePinIssue = onTogglePinIssue,
     )
 }
 
@@ -58,16 +58,19 @@ fun IssueList(
     modifier: Modifier = Modifier,
     viewModel: IssueViewModel = hiltViewModel(),
     onIssueSelected: (IssueId) -> Unit,
-    onTogglePinIssue: ((IssueId) -> Unit)? = null
+    onTogglePinIssue: ((IssueId) -> Unit)? = null,
 ) {
     val searchResult by viewModel.filteredIssues.collectAsState()
 
     PullToRefreshList(
-        modifier = modifier
-            .padding(horizontal = 16.dp),
-        result = searchResult, refresh = {
+        modifier =
+            modifier
+                .padding(horizontal = 16.dp),
+        result = searchResult,
+        refresh = {
             viewModel.refreshIssues()
-        }) { result ->
+        },
+    ) { result ->
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = viewModel.searchTerm,
@@ -76,28 +79,31 @@ fun IssueList(
             },
             onValueChange = { term ->
                 viewModel.searchTerm = term
-            }
+            },
         )
 
-        val issueUiModels = result.map {
-            val highlighted = highlightText(
-                text = it.title,
-                query = viewModel.searchTerm,
-                span = highlightSpanStyle(
-                    HighlightColors(
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        background = MaterialTheme.colorScheme.primaryContainer
+        val issueUiModels =
+            result.map {
+                val highlighted =
+                    highlightText(
+                        text = it.title,
+                        query = viewModel.searchTerm,
+                        span =
+                            highlightSpanStyle(
+                                HighlightColors(
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    background = MaterialTheme.colorScheme.primaryContainer,
+                                ),
+                            ),
                     )
-                )
-            )
-            IssueUiModel(it.id, highlighted, it.pinned)
-        }
+                IssueUiModel(it.id, highlighted, it.pinned)
+            }
 
         if (issueUiModels.isEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = stringResource(R.string.no_visible_issues),
-                style = MaterialTheme.typography.bodyLarge
+                style = MaterialTheme.typography.bodyLarge,
             )
         } else {
             issueUiModels.forEach { issueUiModel ->
@@ -105,7 +111,7 @@ fun IssueList(
                 IssueCard(
                     issue = issueUiModel,
                     onNavigateToIssue = onIssueSelected,
-                    onTogglePinIssue = onTogglePinIssue
+                    onTogglePinIssue = onTogglePinIssue,
                 )
             }
         }
@@ -132,8 +138,9 @@ fun IssueScreen(
     }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
+        modifier =
+            modifier
+                .fillMaxSize(),
     ) {
         IssueDetails(
             model = model!!,
@@ -145,7 +152,7 @@ fun IssueScreen(
             changeIssueId = changeIssueId,
             splitWorklog = splitWorklog,
             incrementWorklogTime = incrementWorklogTime,
-            decrementWorklogTime = decrementWorklogTime
+            decrementWorklogTime = decrementWorklogTime,
         )
     }
 }
@@ -153,13 +160,14 @@ fun IssueScreen(
 @Composable
 fun IssueInvalid() {
     Column(
-        modifier = Modifier
-            .padding(16.dp)
-            .fillMaxSize()
+        modifier =
+            Modifier
+                .padding(16.dp)
+                .fillMaxSize(),
     ) {
         Text(
             text = stringResource(R.string.issue_not_available),
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
         )
     }
 }
@@ -167,13 +175,14 @@ fun IssueInvalid() {
 @Composable
 fun NoActiveUser() {
     Column(
-        modifier = Modifier
-            .padding(16.dp)
-            .fillMaxSize()
+        modifier =
+            Modifier
+                .padding(16.dp)
+                .fillMaxSize(),
     ) {
         Text(
             text = stringResource(R.string.no_active_user_error),
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
         )
     }
 }

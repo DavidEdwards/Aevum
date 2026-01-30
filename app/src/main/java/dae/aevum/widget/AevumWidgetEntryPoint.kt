@@ -12,11 +12,10 @@ import dagger.hilt.components.SingletonComponent
 @InstallIn(SingletonComponent::class)
 interface AevumWidgetEntryPoint {
     fun jiraRepository(): JiraRepository
+
     fun userRepository(): UserRepository
+
     fun database(): AppDatabase
+
     fun widgetRefresher(): WidgetRefresher
 }
-
-
-
-

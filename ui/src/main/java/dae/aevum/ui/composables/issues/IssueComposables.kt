@@ -60,32 +60,35 @@ fun IssueCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
         onClick = {
             Timber.v("Clicked on issue")
             onNavigateToIssue(issue.id)
-        }
+        },
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             Column(
-                modifier = Modifier
-                    .weight(1f)
+                modifier =
+                    Modifier
+                        .weight(1f),
             ) {
                 Text(
                     text = issue.id.value,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Black
+                    fontWeight = FontWeight.Black,
                 )
                 Text(
                     text = issue.title,
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
                 )
             }
 
@@ -93,14 +96,15 @@ fun IssueCard(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterVertically)
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterVertically),
                 ) {
                     CircleButton(
                         modifier = Modifier,
                         active = issue.pinned,
                         icon = Icons.Outlined.PushPin,
-                        iconContentDescription = stringResource(R.string.pin_this_issue)
+                        iconContentDescription = stringResource(R.string.pin_this_issue),
                     ) {
                         onTogglePinIssue?.invoke(issue.id)
                     }
@@ -132,15 +136,16 @@ fun IssueDetails(
     val worklogs by viewModel.worklogsForViewedIssue.collectAsState(initial = emptyList())
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
     ) {
         Spacer(modifier = Modifier.height(16.dp))
         Row {
             Text(
                 text = model.id.value + " · " + model.title,
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.titleLarge,
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -148,17 +153,17 @@ fun IssueDetails(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             StartStopLoggingButton(
                 issue = model.id,
                 startLogging = startLogging,
-                stopLogging = stopLogging
+                stopLogging = stopLogging,
             )
-            
+
             IssueContextMenu(
                 issueId = model.id,
-                viewModel = viewModel
+                viewModel = viewModel,
             )
         }
 
@@ -174,7 +179,7 @@ fun IssueDetails(
                     changeIssueId = changeIssueId,
                     splitWorklog = splitWorklog,
                     incrementWorklogTime = incrementWorklogTime,
-                    decrementWorklogTime = decrementWorklogTime
+                    decrementWorklogTime = decrementWorklogTime,
                 )
             }
         }
@@ -185,31 +190,31 @@ fun IssueDetails(
 fun IssueContextMenu(
     issueId: IssueId,
     viewModel: IssueViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val isLoading by viewModel.isLoadingProjectIssues
-    
+
     Box(modifier = modifier) {
         IconButton(
-            onClick = { expanded = true }
+            onClick = { expanded = true },
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp
+                    strokeWidth = 2.dp,
                 )
             } else {
                 Icon(
                     imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = "More options"
+                    contentDescription = "More options",
                 )
             }
         }
-        
+
         DropdownMenu(
             expanded = expanded && !isLoading,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
         ) {
             DropdownMenuItem(
                 text = { Text("Get latest issues for project") },
@@ -218,7 +223,7 @@ fun IssueContextMenu(
                     val projectKey = issueId.value.substringBefore("-")
                     viewModel.getLatestIssuesForProject(projectKey)
                     expanded = false
-                }
+                },
             )
         }
     }

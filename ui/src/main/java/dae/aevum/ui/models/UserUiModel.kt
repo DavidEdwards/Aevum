@@ -5,15 +5,14 @@ import dae.aevum.database.entities.UserEntity
 data class UserUiModel(
     val id: Int,
     val user: String,
-    val active: Boolean
+    val active: Boolean,
 ) {
     companion object {
-        fun fromEntity(entity: UserEntity): UserUiModel {
-            return UserUiModel(
+        fun fromEntity(entity: UserEntity): UserUiModel =
+            UserUiModel(
                 id = entity.id,
                 user = entity.user,
-                active = entity.active
+                active = entity.active,
             )
-        }
     }
 }
