@@ -66,4 +66,6 @@ artifacts
 .cxx
 
 .context.ai
+AGENTS.md
 .private
+.cursor
