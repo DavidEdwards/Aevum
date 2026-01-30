@@ -43,7 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.viewmodels.WorklogViewModel
 import dae.aevum.utils.Formatters
@@ -53,6 +53,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun WorklogDayDetailsScreen(
@@ -130,7 +131,7 @@ private fun WorklogDayDetailsContent(
                             modifier = Modifier.weight(1f),
                         )
                         Text(
-                            text = String.format("%.1f h", hours),
+                            text = String.format(Locale.US, "%.1f h", hours),
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             textAlign = TextAlign.End,
@@ -231,7 +232,7 @@ private fun WorklogDayDetailsContent(
                                         .padding(horizontal = 10.dp, vertical = 4.dp),
                             ) {
                                 Text(
-                                    text = String.format("%.1f h", ehours),
+                                    text = String.format(Locale.US, "%.1f h", ehours),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = contentOnColor,
                                 )

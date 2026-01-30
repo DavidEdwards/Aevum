@@ -16,7 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dae.aevum.common.R
 import dae.aevum.ui.composables.reusable.HighlightColors
 import dae.aevum.ui.composables.reusable.PullToRefreshList

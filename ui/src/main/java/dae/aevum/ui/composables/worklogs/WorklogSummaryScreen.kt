@@ -23,12 +23,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.viewmodels.WorklogViewModel
 import java.time.Duration
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Locale
 
 @Composable
 fun WorklogSummaryScreen(
@@ -114,7 +115,7 @@ private fun WorklogSummaryContent(
                                 text = day.toString(),
                                 style = MaterialTheme.typography.titleMedium,
                             )
-                            Text(text = String.format("%.1f / %.1f h", hours, target))
+                            Text(text = String.format(Locale.US, "%.1f / %.1f h", hours, target))
                         }
                         // Keep summary concise: no per-worklog entries here
                     }

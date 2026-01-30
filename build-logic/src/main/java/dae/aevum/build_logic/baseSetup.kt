@@ -23,7 +23,7 @@ fun Project.baseSetup() {
     println("Found libs: $libs")
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
-            languageVersion.set(KotlinVersion.KOTLIN_2_0)
+            languageVersion.set(KotlinVersion.KOTLIN_2_1)
             jvmTarget.set(JvmTarget.JVM_17)
             optIn.addAll(
                 listOf(
