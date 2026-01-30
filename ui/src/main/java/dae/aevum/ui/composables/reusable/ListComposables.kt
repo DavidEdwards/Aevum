@@ -59,6 +59,7 @@ fun <T> PullToRefreshList(
                     .verticalScroll(state = rememberScrollState())
             ) {
                 content(result)
+                Spacer(modifier = Modifier.height(96.dp))
             }
 
             PullRefreshIndicator(
