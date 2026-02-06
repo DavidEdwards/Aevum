@@ -17,6 +17,10 @@ dependencies {
     implementation(libs.timber)
     // endregion
 
+    // Paging
+    implementation(libs.paging.compose)
+    // endregion
+
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
 

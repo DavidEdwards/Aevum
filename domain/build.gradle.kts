@@ -8,6 +8,9 @@ plugins {
 dependencies {
     implementation(libs.timber)
 
+    // Paging for issues list
+    implementation(libs.paging.runtime)
+
     implementation(projects.db)
     implementation(projects.network)
     implementation(projects.common)

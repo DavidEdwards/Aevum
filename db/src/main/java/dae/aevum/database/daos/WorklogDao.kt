@@ -1,5 +1,6 @@
 package dae.aevum.database.daos
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
@@ -27,6 +28,9 @@ interface WorklogDao {
     @Query("SELECT * FROM worklogs WHERE issueId = :issueId ORDER BY `from` DESC LIMIT 500")
     fun flowWorkByIssueId(issueId: String): Flow<List<WorklogEntity>>
 
+    @Query("SELECT * FROM worklogs WHERE issueId = :issueId ORDER BY `from` DESC")
+    fun pagingWorkByIssueId(issueId: String): PagingSource<Int, WorklogEntity>
+
     @Query("SELECT * FROM worklogs WHERE active = 1 LIMIT 1")
     suspend fun getActiveWorklog(): WorklogEntity?
 
@@ -50,6 +54,9 @@ interface WorklogDao {
 
     @Query("SELECT * FROM worklogs WHERE userId = :userId AND pending = 1 ORDER BY `from` DESC")
     fun flowPendingWorklogs(userId: Int): Flow<List<WorklogEntity>>
+
+    @Query("SELECT * FROM worklogs WHERE userId = :userId AND pending = 1 ORDER BY `from` DESC")
+    fun pagingPendingWorklogs(userId: Int): PagingSource<Int, WorklogEntity>
 
     @Query(
         "SELECT * FROM worklogs WHERE userId = :userId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC",

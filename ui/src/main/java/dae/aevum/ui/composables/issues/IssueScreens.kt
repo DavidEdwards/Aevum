@@ -1,11 +1,14 @@
 package dae.aevum.ui.composables.issues
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -13,19 +16,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dae.aevum.common.R
 import dae.aevum.ui.composables.reusable.HighlightColors
-import dae.aevum.ui.composables.reusable.PullToRefreshList
-import dae.aevum.ui.composables.reusable.highlightSpanStyle
-import dae.aevum.ui.composables.reusable.highlightText
 import dae.aevum.ui.models.IssueUiModel
 import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.utils.IssueId
 import timber.log.Timber
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
+import androidx.paging.compose.collectAsLazyPagingItems
 
 @Composable
 fun IssueListScreen(
@@ -53,6 +64,7 @@ fun IssueListScreen(
     )
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun IssueList(
     modifier: Modifier = Modifier,
@@ -60,17 +72,27 @@ fun IssueList(
     onIssueSelected: (IssueId) -> Unit,
     onTogglePinIssue: ((IssueId) -> Unit)? = null,
 ) {
-    val searchResult by viewModel.filteredIssues.collectAsState()
+    val pagingItems = viewModel.pagedIssues.collectAsLazyPagingItems()
 
-    PullToRefreshList(
+    val refreshScope = rememberCoroutineScope()
+    var refreshing by rememberSaveable { mutableStateOf(false) }
+
+    fun triggerRefresh() {
+        refreshScope.launch {
+            refreshing = true
+            viewModel.refreshIssues().join()
+            pagingItems.refresh()
+            refreshing = false
+        }
+    }
+
+    val refreshState = rememberPullRefreshState(refreshing, ::triggerRefresh)
+
+    Column(
         modifier =
             modifier
                 .padding(horizontal = 16.dp),
-        result = searchResult,
-        refresh = {
-            viewModel.refreshIssues()
-        },
-    ) { result ->
+    ) {
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = viewModel.searchTerm,
@@ -82,38 +104,53 @@ fun IssueList(
             },
         )
 
-        val issueUiModels =
-            result.map {
-                val highlighted =
-                    highlightText(
-                        text = it.title,
-                        query = viewModel.searchTerm,
-                        span =
-                            highlightSpanStyle(
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val items =
+            pagingItems.itemSnapshotList.items.filter { entity ->
+                val term = viewModel.searchTerm
+                term.isBlank() ||
+                    entity.id.value.contains(term, ignoreCase = true) ||
+                    entity.title.contains(term, ignoreCase = true)
+            }
+
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .pullRefresh(refreshState),
+        ) {
+            LazyColumn {
+                itemsIndexed(
+                    items = items,
+                    key = { _, item -> item.id.value },
+                ) { _, item ->
+                    val uiModel =
+                        IssueUiModel.fromEntity(
+                            entity = item,
+                            highlight = viewModel.searchTerm.takeIf { it.isNotBlank() },
+                            pinned = item.pinned,
+                            highlightColors =
                                 HighlightColors(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     background = MaterialTheme.colorScheme.primaryContainer,
                                 ),
-                            ),
+                        )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    IssueCard(
+                        issue = uiModel,
+                        onNavigateToIssue = onIssueSelected,
+                        onTogglePinIssue = onTogglePinIssue,
                     )
-                IssueUiModel(it.id, highlighted, it.pinned)
+                }
             }
 
-        if (issueUiModels.isEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.no_visible_issues),
-                style = MaterialTheme.typography.bodyLarge,
+            PullRefreshIndicator(
+                refreshing = refreshing,
+                state = refreshState,
+                modifier = Modifier.align(Alignment.TopCenter),
             )
-        } else {
-            issueUiModels.forEach { issueUiModel ->
-                Spacer(modifier = Modifier.height(8.dp))
-                IssueCard(
-                    issue = issueUiModel,
-                    onNavigateToIssue = onIssueSelected,
-                    onTogglePinIssue = onTogglePinIssue,
-                )
-            }
         }
     }
 }

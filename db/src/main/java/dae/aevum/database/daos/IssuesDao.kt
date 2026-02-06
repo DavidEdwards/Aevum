@@ -1,5 +1,6 @@
 package dae.aevum.database.daos
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
@@ -72,6 +73,9 @@ interface IssuesDao {
 
     @Query("SELECT * FROM issues WHERE userId = :userId ORDER BY pinned DESC, sort ASC LIMIT 500")
     fun flowAllIssues(userId: Int): Flow<List<IssueEntity>>
+
+    @Query("SELECT * FROM issues WHERE userId = :userId ORDER BY pinned DESC, sort ASC")
+    fun pagingSource(userId: Int): PagingSource<Int, IssueEntity>
 
     @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateIssue(entity: IssueEntity)

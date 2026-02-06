@@ -10,6 +10,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.domain.repositories.WidgetRefresher
@@ -20,6 +22,7 @@ import dae.aevum.utils.IssueId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emptyFlow
@@ -77,6 +80,12 @@ class IssueViewModel
 
         val activeIssue = repository.flowActiveIssue()
         val issues = repository.flowIssues()
+
+        // Paged issues stream for large lists
+        val pagedIssues: Flow<PagingData<dae.aevum.database.entities.IssueEntity>> =
+            repository
+                .pagedIssues()
+                .cachedIn(viewModelScope)
 
         val activeUser = userRepository.flowActiveUser()
 

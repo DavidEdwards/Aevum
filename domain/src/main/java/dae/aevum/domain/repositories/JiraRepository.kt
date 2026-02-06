@@ -1,6 +1,7 @@
 package dae.aevum.domain.repositories
 
 import android.util.Base64
+import androidx.paging.PagingData
 import dae.aevum.database.AppDatabase
 import dae.aevum.database.entities.ActiveIssueEntity
 import dae.aevum.database.entities.IssueEntity
@@ -20,6 +21,9 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import timber.log.Timber
+
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -31,6 +35,8 @@ interface JiraRepository {
     suspend fun getIssues(): List<IssueEntity>
 
     fun flowIssues(): Flow<List<IssueEntity>>
+
+    fun pagedIssues(pageSize: Int = 50): Flow<PagingData<IssueEntity>>
 
     suspend fun refreshIssuesfromJira()
 
@@ -58,6 +64,8 @@ interface JiraRepository {
     suspend fun deleteWorklog(worklogId: Long)
 
     fun getPendingWorklogs(): Flow<List<WorklogEntity>>
+
+    fun pagedPendingWorklogs(pageSize: Int = 50): Flow<PagingData<WorklogEntity>>
 
     fun getWorklogsToday(): Flow<List<WorklogEntity>>
 
@@ -134,6 +142,20 @@ class JiraRepositoryImpl(
         userRepository.flowActiveUser().flatMapLatest { user ->
             if (user == null) return@flatMapLatest emptyFlow()
             database.issueDao().flowAllIssues(user.id)
+        }
+
+    override fun pagedIssues(pageSize: Int): Flow<PagingData<IssueEntity>> =
+        userRepository.flowActiveUser().flatMapLatest { user ->
+            if (user == null) return@flatMapLatest emptyFlow()
+            Pager(
+                config =
+                    PagingConfig(
+                        pageSize = pageSize,
+                        enablePlaceholders = false,
+                        initialLoadSize = pageSize * 2,
+                    ),
+                pagingSourceFactory = { database.issueDao().pagingSource(user.id) },
+            ).flow
         }
 
     override suspend fun refreshIssuesfromJira() =
@@ -350,6 +372,20 @@ class JiraRepositoryImpl(
             return@flatMapLatest database.worklogDao().flowPendingWorklogs(user.id)
         }
     }
+
+    override fun pagedPendingWorklogs(pageSize: Int): Flow<PagingData<WorklogEntity>> =
+        userRepository.flowActiveUser().flatMapLatest { user ->
+            if (user == null) return@flatMapLatest emptyFlow()
+            Pager(
+                config =
+                    PagingConfig(
+                        pageSize = pageSize,
+                        enablePlaceholders = false,
+                        initialLoadSize = pageSize * 2,
+                    ),
+                pagingSourceFactory = { database.worklogDao().pagingPendingWorklogs(user.id) },
+            ).flow
+        }
 
     override fun getWorklogsToday(): Flow<List<WorklogEntity>> {
         return userRepository.flowActiveUser().flatMapLatest { user ->

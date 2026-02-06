@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +23,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.map
 import java.time.Instant
 import javax.inject.Inject
 
@@ -55,6 +59,15 @@ class WorklogViewModel
                 .map { list ->
                     list.map { WorklogUiModel.fromEntity(entity = it) }
                 }
+
+        // Paged pending worklogs for large lists
+        val pagedPendingWorklogs: Flow<PagingData<WorklogUiModel>> =
+            jiraRepository
+                .pagedPendingWorklogs()
+                .map { pagingData ->
+                    pagingData.map { entity -> WorklogUiModel.fromEntity(entity = entity) }
+                }
+                .cachedIn(viewModelScope)
 
         val worklogsTodayFromMe =
             jiraRepository
