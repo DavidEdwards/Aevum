@@ -53,4 +53,5 @@
     <string name="decrement_worklog_time">Decrement worklog time</string>
     <string name="split_worklog">Split worklog</string>
     <string name="summary_title">Summary</string>
+    <string name="last_14_days">Last 14 days</string>
 </resources>

@@ -74,6 +74,7 @@ private fun WorklogSummaryContent(
             Button(onClick = onRefresh) {
                 Text(text = "Refresh")
             }
+
             Button(onClick = onOpenBarChart) {
                 Text(text = "Bar chart")
             }
@@ -105,7 +106,8 @@ private fun WorklogSummaryContent(
                                 .clickable { onOpenDayDetailsForDay(day) }
                                 .background(
                                     if (meets) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.errorContainer,
-                                ).padding(12.dp),
+                                )
+                                .padding(12.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
