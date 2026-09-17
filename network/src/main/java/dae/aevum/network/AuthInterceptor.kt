@@ -2,6 +2,7 @@ package dae.aevum.network
 
 import android.util.Base64
 import dae.aevum.database.entities.UserEntity
+import dae.aevum.utils.JiraAuthState
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -53,6 +54,19 @@ class AuthInterceptor(
                 chain.request()
             }
 
-        return chain.proceed(newRequest)
+        val response = chain.proceed(newRequest)
+        val loginReason = response.header(SERAPH_LOGIN_REASON_HEADER)
+        if (loginReason.equals(AUTHENTICATED_FAILED, ignoreCase = true)) {
+            JiraAuthState.markTokenExpired()
+        } else if (response.isSuccessful) {
+            // Clear stale state once authenticated requests start succeeding again.
+            JiraAuthState.clearTokenExpired()
+        }
+        return response
+    }
+
+    companion object {
+        private const val SERAPH_LOGIN_REASON_HEADER = "x-seraph-loginreason"
+        private const val AUTHENTICATED_FAILED = "AUTHENTICATED_FAILED"
     }
 }

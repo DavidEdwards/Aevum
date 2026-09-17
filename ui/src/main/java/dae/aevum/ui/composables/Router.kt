@@ -1,14 +1,20 @@
 package dae.aevum.ui.composables
 
 import androidx.compose.animation.Crossfade
+import android.Manifest
 import android.content.res.Configuration
+import android.os.Build
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -40,6 +46,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -57,6 +64,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import dae.aevum.common.R
 import dae.aevum.ui.composables.dialogs.AddUserDialog
 import dae.aevum.ui.composables.dialogs.CompletedWorklogDialog
@@ -77,12 +87,13 @@ import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.ui.viewmodels.UserViewModel
 import dae.aevum.ui.viewmodels.WorklogViewModel
 import dae.aevum.utils.IssueId
+import dae.aevum.utils.JiraAuthState
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
 sealed class Screen(
     val route: String,
-    @StringRes val resourceId: Int,
+    @param:StringRes val resourceId: Int,
     val icon: ImageVector,
 ) {
     data object Users : Screen("users", R.string.users, Icons.Outlined.AccountCircle)
@@ -189,6 +200,7 @@ fun AppScaffold(
     userViewModel: UserViewModel = hiltViewModel(),
 ) {
     val activeUserState by userViewModel.activeUserState.collectAsState()
+    val tokenExpired by JiraAuthState.tokenExpired.collectAsState()
 
     val isLoading = activeUserState is ActiveUserState.Loading
     val activeUser = (activeUserState as? ActiveUserState.Loaded)?.user
@@ -198,6 +210,8 @@ fun AppScaffold(
             onReady()
         }
     }
+
+    RequestNotificationPermissionIfNeeded(activeUser != null)
 
     if (isLoading) {
         return
@@ -221,7 +235,10 @@ fun AppScaffold(
             )
         },
         topBar = {
-            TopBar(currentScreen = currentScreen)
+            AppTopBar(
+                currentScreen = currentScreen,
+                showTokenExpiredBanner = tokenExpired && activeUser != null,
+            )
         },
         floatingActionButton = {
             Fab(navController = navController, currentScreen = currentScreen)
@@ -235,9 +252,54 @@ fun AppScaffold(
             insets.calculateRightPadding(LayoutDirection.Ltr),
         )
         AppNavHost(
+            modifier = Modifier.fillMaxSize(),
             navController = navController,
             userViewModel = userViewModel,
             startDestination = startDestination,
+        )
+    }
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+private fun RequestNotificationPermissionIfNeeded(enabled: Boolean) {
+    if (!enabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+        return
+    }
+
+    val notificationPermission = rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
+    LaunchedEffect(enabled, notificationPermission.status.isGranted) {
+        if (!notificationPermission.status.isGranted) {
+            notificationPermission.launchPermissionRequest()
+        }
+    }
+}
+
+@Composable
+private fun AppTopBar(
+    currentScreen: Screen,
+    showTokenExpiredBanner: Boolean,
+) {
+    Column {
+        TopBar(currentScreen = currentScreen)
+        if (showTokenExpiredBanner) {
+            TokenExpiredBanner()
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun TokenExpiredBanner(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+    ) {
+        Text(
+            text = stringResource(R.string.token_expired_error),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         )
     }
 }
@@ -262,7 +324,9 @@ private fun TopBar(currentScreen: Screen) {
                 WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
             ),
         title = {
-            Row {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Icon(
                     imageVector = ImageVector.vectorResource(id = R.drawable.ic_launcher_foreground),
                     contentDescription = stringResource(R.string.app_name),
@@ -388,12 +452,13 @@ private fun Fab(
 
 @Composable
 private fun AppNavHost(
+    modifier: Modifier = Modifier,
     navController: NavHostController,
     userViewModel: UserViewModel,
     startDestination: String,
 ) {
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
         NavHost(
@@ -407,6 +472,9 @@ private fun AppNavHost(
                     },
                     deleteUser = { id ->
                         userViewModel.removeUser(id)
+                    },
+                    updateUserToken = { id, token, after ->
+                        userViewModel.updateUserToken(id, token, after)
                     },
                 )
             }
@@ -446,6 +514,9 @@ private fun AppNavHost(
                     },
                     decrementWorklogTime = { workId, amount ->
                         viewModel.decrementWorklogTime(workId, amount)
+                    },
+                    onNavigateToEditor = { worklogId ->
+                        navController.navigate("worklogEditor/$worklogId")
                     },
                 )
             }

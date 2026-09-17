@@ -38,6 +38,8 @@ interface JiraRepository {
 
     fun pagedIssues(pageSize: Int = 50): Flow<PagingData<IssueEntity>>
 
+    fun flowPinnedIssues(): Flow<List<IssueEntity>>
+
     suspend fun refreshIssuesfromJira()
 
     suspend fun refreshWorklogsFor(issueId: IssueId)
@@ -156,6 +158,12 @@ class JiraRepositoryImpl(
                     ),
                 pagingSourceFactory = { database.issueDao().pagingSource(user.id) },
             ).flow
+        }
+
+    override fun flowPinnedIssues(): Flow<List<IssueEntity>> =
+        userRepository.flowActiveUser().flatMapLatest { user ->
+            if (user == null) return@flatMapLatest emptyFlow()
+            database.issueDao().flowPinnedIssues(user.id)
         }
 
     override suspend fun refreshIssuesfromJira() =

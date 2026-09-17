@@ -10,6 +10,8 @@ interface UserRepository {
 
     fun flowActiveUser(): Flow<UserEntity?>
 
+    suspend fun getUserById(userId: Int): UserEntity?
+
     suspend fun listUsers(): List<UserEntity>
 
     fun flowUsers(): Flow<List<UserEntity>>
@@ -26,6 +28,11 @@ interface UserRepository {
     suspend fun selectUser(userId: Int)
 
     suspend fun unselectAllUsers()
+
+    suspend fun updateUserToken(
+        userId: Int,
+        token: String,
+    )
 }
 
 @Singleton
@@ -35,6 +42,8 @@ class UserRepositoryImpl(
     override suspend fun getActiveUser(): UserEntity? = database.userDao().getActiveUser()
 
     override fun flowActiveUser(): Flow<UserEntity?> = database.userDao().flowActiveUser()
+
+    override suspend fun getUserById(userId: Int): UserEntity? = database.userDao().getUserById(userId)
 
     override suspend fun listUsers(): List<UserEntity> = database.userDao().listUsers()
 
@@ -68,5 +77,12 @@ class UserRepositoryImpl(
 
     override suspend fun unselectAllUsers() {
         database.userDao().setAllUsersInactive()
+    }
+
+    override suspend fun updateUserToken(
+        userId: Int,
+        token: String,
+    ) {
+        database.userDao().updateUserToken(userId, token)
     }
 }

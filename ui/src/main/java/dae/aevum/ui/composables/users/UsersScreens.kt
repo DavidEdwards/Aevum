@@ -21,8 +21,10 @@ fun UserListScreen(
     viewModel: UserViewModel = hiltViewModel(),
     selectUser: (Int) -> Unit = {},
     deleteUser: (Int) -> Unit = {},
+    updateUserToken: (Int, String, (Boolean) -> Unit) -> Unit = { _, _, _ -> },
 ) {
     val userModels by viewModel.users.collectAsState(initial = emptyList())
+    val loading = viewModel.loading
 
     Column(
         modifier =
@@ -34,8 +36,10 @@ fun UserListScreen(
         userModels.forEach { model ->
             UserCard(
                 model = model,
+                loading = loading,
                 selectUser = selectUser,
                 deleteUser = deleteUser,
+                updateUserToken = updateUserToken,
             )
             Spacer(modifier = Modifier.height(8.dp))
         }

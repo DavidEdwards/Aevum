@@ -42,7 +42,7 @@ class IssueViewModel
         private val savedStateHandle: SavedStateHandle,
         private val repository: JiraRepository,
         userRepository: UserRepository,
-        @ApplicationContext private val appContext: Context,
+        @param:ApplicationContext private val appContext: Context,
         private val widgetRefresher: WidgetRefresher,
     ) : ViewModel() {
         private val savedViewedIssueId =
@@ -86,6 +86,11 @@ class IssueViewModel
             repository
                 .pagedIssues()
                 .cachedIn(viewModelScope)
+
+        val pinnedIssues =
+            repository
+                .flowPinnedIssues()
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
         val activeUser = userRepository.flowActiveUser()
 

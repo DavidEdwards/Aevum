@@ -20,6 +20,9 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE active = 1 AND jiraUserAccountId != '' LIMIT 1")
     fun flowActiveUser(): Flow<UserEntity?>
 
+    @Query("SELECT * FROM users WHERE id = :userId LIMIT 1")
+    suspend fun getUserById(userId: Int): UserEntity?
+
     @Query("SELECT * FROM users ORDER BY active DESC, user ASC")
     fun listUsers(): List<UserEntity>
 
@@ -43,6 +46,12 @@ interface UserDao {
 
     @Query("UPDATE users SET active = 1 WHERE id = :userId")
     suspend fun setUserActive(userId: Int)
+
+    @Query("UPDATE users SET token = :token WHERE id = :userId")
+    suspend fun updateUserToken(
+        userId: Int,
+        token: String,
+    )
 
     @Query("SELECT id FROM users WHERE active = 1 LIMIT 1")
     suspend fun hasActiveUser(): Boolean

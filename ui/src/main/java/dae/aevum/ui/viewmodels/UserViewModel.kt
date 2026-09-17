@@ -146,6 +146,46 @@ class UserViewModel
             }
         }
 
+        fun updateUserToken(
+            userId: Int,
+            token: String,
+            after: (Boolean) -> Unit = {},
+        ) {
+            viewModelScope.launch {
+                if (token.isBlank()) {
+                    after(false)
+                    return@launch
+                }
+
+                loading = true
+                try {
+                    val user = userRepository.getUserById(userId)
+                    if (user == null) {
+                        after(false)
+                        return@launch
+                    }
+
+                    val correctPermissions =
+                        jiraRepository.testUser(
+                            instanceUrl = user.instanceUrl,
+                            user = user.user,
+                            token = token,
+                        )
+
+                    if (correctPermissions) {
+                        userRepository.updateUserToken(userId, token)
+                    }
+
+                    after(correctPermissions)
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed updating token for userId=$userId")
+                    after(false)
+                } finally {
+                    loading = false
+                }
+            }
+        }
+
         companion object {
             private const val SAVED_INSTANCE_URL = "instanceUrl"
             private const val SAVED_USER = "user"

@@ -54,4 +54,19 @@
     <string name="split_worklog">Split worklog</string>
     <string name="summary_title">Summary</string>
     <string name="last_14_days">Last 14 days</string>
+    <string name="token_expired_error">Your Jira token has expired. Please renew it in Users.</string>
+    <string name="user_actions">User actions</string>
+    <string name="update_token">Update token</string>
+    <string name="new_token">New API token</string>
+    <string name="save_token">Save token</string>
+    <string name="delete_user">Delete user</string>
+    <string name="delete_user_confirm">Delete user %1$s?</string>
+    <string name="issues_tab_search">Search</string>
+    <string name="issues_tab_favourites">Favourites</string>
+    <string name="no_favourite_issues">No favourite issues yet. Pin an issue to see it here.</string>
+    <string name="timer_notification_channel_name">Active timer</string>
+    <string name="timer_notification_channel_description">Shows while a work timer is running</string>
+    <string name="timer_notification_title">Timing %1$s</string>
+    <string name="timer_notification_title_generic">Timer running</string>
+    <string name="timer_notification_text">Work timer is active</string>
 </resources>

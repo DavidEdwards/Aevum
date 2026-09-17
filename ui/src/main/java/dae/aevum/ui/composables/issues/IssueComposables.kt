@@ -127,6 +127,7 @@ fun IssueDetails(
     splitWorklog: (Long) -> Unit = {},
     incrementWorklogTime: (workId: Long, amount: Long) -> Unit = { _, _ -> },
     decrementWorklogTime: (workId: Long, amount: Long) -> Unit = { _, _ -> },
+    onNavigateToEditor: (Long) -> Unit = {},
 ) {
     LaunchedEffect(Unit) {
         Timber.v("Reload issue screen")
@@ -174,6 +175,7 @@ fun IssueDetails(
                 Spacer(modifier = Modifier.height(8.dp))
                 WorklogCard(
                     worklogUiModel = worklogUiModel,
+                    onNavigate = { onNavigateToEditor(it.workId) },
                     stopLogging = stopLogging,
                     deleteWorklog = deleteWorklog,
                     changeIssueId = changeIssueId,

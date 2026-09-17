@@ -14,7 +14,7 @@ import javax.inject.Inject
 class WidgetRefresherImpl
     @Inject
     constructor(
-        @ApplicationContext private val appContext: Context,
+        @param:ApplicationContext private val appContext: Context,
     ) : WidgetRefresher {
         override suspend fun refreshAll() {
             Timber.d("WidgetRefresherImpl.refreshAll")

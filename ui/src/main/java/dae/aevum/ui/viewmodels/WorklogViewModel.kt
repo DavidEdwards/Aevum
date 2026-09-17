@@ -39,7 +39,7 @@ class WorklogViewModel
         private val savedStateHandle: SavedStateHandle,
         private val jiraRepository: JiraRepository,
         private val audioRepository: AudioRepository,
-        @ApplicationContext private val appContext: Context,
+        @param:ApplicationContext private val appContext: Context,
         private val widgetRefresher: WidgetRefresher,
     ) : ViewModel() {
         val worklogBeingViewed =

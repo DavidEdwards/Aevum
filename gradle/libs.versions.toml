@@ -3,45 +3,55 @@ genaiProofreading = "1.0.0-beta1"
 versionCode = "2"
 versionName = "1.0.3"
 
-sdk-compile = "36"
+sdk-compile = "37"
 sdk-min = "26"
-sdk-target = "36"
+sdk-target = "37"
 
 leakcanary = "2.14"
-agp = "9.0.0"
-kotlin = "2.3.0"
-core-ktx = "1.17.0"
+agp = "9.4.0"
+kotlin = "2.4.20"
+core-ktx = "1.19.0"
 junit = "4.13.2"
 androidx-test-ext-junit = "1.3.0"
 espresso-core = "3.7.0"
-lifecycle = "2.10.0"
-activity-compose = "1.12.3"
-compose-bom = "2026.01.01"
+lifecycle = "2.11.0"
+activity-compose = "1.13.0"
+compose-bom = "2026.09.00"
 timber = "5.0.1"
-compose-nav = "2.9.7"
+compose-nav = "2.10.1"
 compose-icons = "1.7.8"
-room = "2.8.4"
-okhttp = "5.3.2"
+room = "2.8.5"
+okhttp = "5.5.0"
 retrofit = "3.0.0"
-hilt = "2.59"
-hilt-nav = "1.3.0"
-ksp = "2.3.2"
+hilt = "2.60.1"
+hilt-nav = "1.4.0"
+ksp = "2.3.12"
 accompanist-permissions = "0.37.3"
-appcompat = "1.7.1"
-material = "1.13.0"
-glance = "1.1.1"
+appcompat = "1.8.0"
+material = "1.14.0"
+glance = "1.2.0"
 splashscreen = "1.2.0"
 
 ktlint-core = "1.8.0"
-ktlint-gradlePlugin = "0.12.0"
+ktlint-gradlePlugin = "0.14.0"
+ktlint-compose = "0.6.6"
 
-coroutines = "1.10.2"
+coroutines = "1.11.0"
 
 coil = "2.7.0"
 
-paging = "3.3.2"
+paging = "3.5.1"
 
 javax-inject = "1"
+
+desugar = "2.1.5"
+mockk = "1.14.11"
+robolectric = "4.17"
+androidx-test-runner = "1.7.0"
+androidx-test-core = "1.7.0"
+androidx-test-rules = "1.7.0"
+androidx-test-orchestrator = "1.6.1"
+androidx-test-services = "1.6.0"
 
 [libraries]
 genai-proofreading = { module = "com.google.mlkit:genai-proofreading", version.ref = "genaiProofreading" }
@@ -84,9 +94,9 @@ splashscreen = { group = "androidx.core", name = "core-splashscreen", version.re
 
 ktlint-core = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlint-core" }
 ktlint-gradlePlugin = { module = "io.github.usefulness:ktlint-gradle-plugin", version.ref = "ktlint-gradlePlugin" }
-ktlint-compose = "io.nlopez.compose.rules:ktlint:0.5.6"
+ktlint-compose = { module = "io.nlopez.compose.rules:ktlint", version.ref = "ktlint-compose" }
 
-desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
+desugar = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar" }
 
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "coroutines" }
@@ -111,23 +121,22 @@ compose-animation-graphics = { module = "androidx.compose.animation:animation-gr
 compose-animation-animation = { module = "androidx.compose.animation:animation" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
-#compose-navigation = "dev.olshevski.navigation:reimagined:1.5.0"
 
-coil = "io.coil-kt:coil-compose:2.7.0"
+coil = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
-mockk = "io.mockk:mockk:1.14.9"
-robolectric = "org.robolectric:robolectric:4.16.1"
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
-androidX-test-runner = "androidx.test:runner:1.7.0"
+androidX-test-runner = { module = "androidx.test:runner", version.ref = "androidx-test-runner" }
 androidX-test-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
-androidX-test-core = "androidx.test:core-ktx:1.7.0"
+androidX-test-core = { module = "androidx.test:core-ktx", version.ref = "androidx-test-core" }
 
-androidTest-orchestrator = "androidx.test:orchestrator:1.6.1"
-androidTest-services-testServices = "androidx.test.services:test-services:1.6.0"
-androidTest-services-storage = "androidx.test.services:storage:1.6.0"
+androidTest-orchestrator = { module = "androidx.test:orchestrator", version.ref = "androidx-test-orchestrator" }
+androidTest-services-testServices = { module = "androidx.test.services:test-services", version.ref = "androidx-test-services" }
+androidTest-services-storage = { module = "androidx.test.services:storage", version.ref = "androidx-test-services" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso-core" }
-androidTest-rules = "androidx.test:rules:1.7.0"
+androidTest-rules = { module = "androidx.test:rules", version.ref = "androidx-test-rules" }
 
 javax-inject = { group = "javax.inject", name = "javax.inject", version.ref = "javax-inject" }
 

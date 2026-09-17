@@ -68,14 +68,17 @@ interface IssuesDao {
     @Query("SELECT * FROM issues, worklogs WHERE issues.id = worklogs.issueId AND worklogs.active = 1 AND issues.userId = :userId LIMIT 1")
     fun flowActiveIssue(userId: Int): Flow<ActiveIssueEntity?>
 
-    @Query("SELECT * FROM issues WHERE userId = :userId ORDER BY pinned DESC, sort ASC")
+    @Query("SELECT * FROM issues WHERE userId = :userId ORDER BY sort ASC")
     suspend fun getAllIssues(userId: Int): List<IssueEntity>
 
-    @Query("SELECT * FROM issues WHERE userId = :userId ORDER BY pinned DESC, sort ASC LIMIT 500")
+    @Query("SELECT * FROM issues WHERE userId = :userId ORDER BY sort ASC LIMIT 500")
     fun flowAllIssues(userId: Int): Flow<List<IssueEntity>>
 
-    @Query("SELECT * FROM issues WHERE userId = :userId ORDER BY pinned DESC, sort ASC")
+    @Query("SELECT * FROM issues WHERE userId = :userId ORDER BY sort ASC")
     fun pagingSource(userId: Int): PagingSource<Int, IssueEntity>
+
+    @Query("SELECT * FROM issues WHERE userId = :userId AND pinned = 1 ORDER BY sort ASC")
+    fun flowPinnedIssues(userId: Int): Flow<List<IssueEntity>>
 
     @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateIssue(entity: IssueEntity)

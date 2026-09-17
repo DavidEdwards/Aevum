@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
@@ -15,11 +16,14 @@ import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -31,12 +35,18 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.paging.compose.collectAsLazyPagingItems
 import dae.aevum.common.R
+import dae.aevum.database.entities.IssueEntity
 import dae.aevum.ui.composables.reusable.HighlightColors
 import dae.aevum.ui.models.IssueUiModel
 import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.utils.IssueId
 import kotlinx.coroutines.launch
 import timber.log.Timber
+
+private enum class IssuesTab {
+    Search,
+    Favourites,
+}
 
 @Composable
 fun IssueListScreen(
@@ -72,6 +82,59 @@ fun IssueList(
     onIssueSelected: (IssueId) -> Unit,
     onTogglePinIssue: ((IssueId) -> Unit)? = null,
 ) {
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    val tabs = IssuesTab.entries
+
+    Column(
+        modifier =
+            modifier
+                .padding(horizontal = 16.dp),
+    ) {
+        PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
+            tabs.forEachIndexed { index, tab ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = {
+                        Text(
+                            text =
+                                when (tab) {
+                                    IssuesTab.Search -> stringResource(R.string.issues_tab_search)
+                                    IssuesTab.Favourites ->
+                                        stringResource(R.string.issues_tab_favourites)
+                                },
+                        )
+                    },
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        when (tabs[selectedTabIndex]) {
+            IssuesTab.Search ->
+                SearchIssuesContent(
+                    viewModel = viewModel,
+                    onIssueSelected = onIssueSelected,
+                    onTogglePinIssue = onTogglePinIssue,
+                )
+            IssuesTab.Favourites ->
+                FavouritesIssuesContent(
+                    viewModel = viewModel,
+                    onIssueSelected = onIssueSelected,
+                    onTogglePinIssue = onTogglePinIssue,
+                )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+private fun SearchIssuesContent(
+    viewModel: IssueViewModel,
+    onIssueSelected: (IssueId) -> Unit,
+    onTogglePinIssue: ((IssueId) -> Unit)?,
+) {
     val pagingItems = viewModel.pagedIssues.collectAsLazyPagingItems()
 
     val refreshScope = rememberCoroutineScope()
@@ -88,11 +151,7 @@ fun IssueList(
 
     val refreshState = rememberPullRefreshState(refreshing, ::triggerRefresh)
 
-    Column(
-        modifier =
-            modifier
-                .padding(horizontal = 16.dp),
-    ) {
+    Column {
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = viewModel.searchTerm,
@@ -120,29 +179,24 @@ fun IssueList(
                     .fillMaxSize()
                     .pullRefresh(refreshState),
         ) {
-            LazyColumn {
-                itemsIndexed(
-                    items = items,
-                    key = { _, item -> item.id.value },
-                ) { _, item ->
-                    val uiModel =
-                        IssueUiModel.fromEntity(
+            if (items.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.no_visible_issues),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            } else {
+                LazyColumn {
+                    itemsIndexed(
+                        items = items,
+                        key = { _, item -> item.id.value },
+                    ) { _, item ->
+                        IssueListItem(
                             entity = item,
                             highlight = viewModel.searchTerm.takeIf { it.isNotBlank() },
-                            pinned = item.pinned,
-                            highlightColors =
-                                HighlightColors(
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    background = MaterialTheme.colorScheme.primaryContainer,
-                                ),
+                            onIssueSelected = onIssueSelected,
+                            onTogglePinIssue = onTogglePinIssue,
                         )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    IssueCard(
-                        issue = uiModel,
-                        onNavigateToIssue = onIssueSelected,
-                        onTogglePinIssue = onTogglePinIssue,
-                    )
+                    }
                 }
             }
 
@@ -153,6 +207,90 @@ fun IssueList(
             )
         }
     }
+}
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+private fun FavouritesIssuesContent(
+    viewModel: IssueViewModel,
+    onIssueSelected: (IssueId) -> Unit,
+    onTogglePinIssue: ((IssueId) -> Unit)?,
+) {
+    val pinnedIssues by viewModel.pinnedIssues.collectAsState()
+
+    val refreshScope = rememberCoroutineScope()
+    var refreshing by rememberSaveable { mutableStateOf(false) }
+
+    fun triggerRefresh() {
+        refreshScope.launch {
+            refreshing = true
+            viewModel.refreshIssues().join()
+            refreshing = false
+        }
+    }
+
+    val refreshState = rememberPullRefreshState(refreshing, ::triggerRefresh)
+
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .pullRefresh(refreshState),
+    ) {
+        if (pinnedIssues.isEmpty()) {
+            Text(
+                text = stringResource(R.string.no_favourite_issues),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        } else {
+            LazyColumn {
+                items(
+                    items = pinnedIssues,
+                    key = { it.id.value },
+                ) { item ->
+                    IssueListItem(
+                        entity = item,
+                        highlight = null,
+                        onIssueSelected = onIssueSelected,
+                        onTogglePinIssue = onTogglePinIssue,
+                    )
+                }
+            }
+        }
+
+        PullRefreshIndicator(
+            refreshing = refreshing,
+            state = refreshState,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
+    }
+}
+
+@Composable
+private fun IssueListItem(
+    entity: IssueEntity,
+    highlight: String?,
+    onIssueSelected: (IssueId) -> Unit,
+    onTogglePinIssue: ((IssueId) -> Unit)?,
+) {
+    val uiModel =
+        IssueUiModel.fromEntity(
+            entity = entity,
+            highlight = highlight,
+            pinned = entity.pinned,
+            highlightColors =
+                HighlightColors(
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    background = MaterialTheme.colorScheme.primaryContainer,
+                ),
+        )
+
+    Spacer(modifier = Modifier.height(8.dp))
+    IssueCard(
+        issue = uiModel,
+        onNavigateToIssue = onIssueSelected,
+        onTogglePinIssue = onTogglePinIssue,
+    )
 }
 
 @Composable
@@ -166,6 +304,7 @@ fun IssueScreen(
     splitWorklog: (Long) -> Unit = {},
     incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
     decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
+    onNavigateToEditor: (Long) -> Unit = {},
 ) {
     viewModel.setViewedIssueId(issueId)
     val model by viewModel.issueBeingViewed.collectAsState(initial = null)
@@ -190,6 +329,7 @@ fun IssueScreen(
             splitWorklog = splitWorklog,
             incrementWorklogTime = incrementWorklogTime,
             decrementWorklogTime = decrementWorklogTime,
+            onNavigateToEditor = onNavigateToEditor,
         )
     }
 }

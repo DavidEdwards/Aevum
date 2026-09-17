@@ -23,7 +23,7 @@ fun Project.baseSetup() {
     println("Found libs: $libs")
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
-            languageVersion.set(KotlinVersion.KOTLIN_2_1)
+            languageVersion.set(KotlinVersion.KOTLIN_2_2)
             jvmTarget.set(JvmTarget.JVM_17)
             optIn.addAll(
                 listOf(
@@ -52,6 +52,7 @@ fun Project.baseSetup() {
 
     val minSdkVersion = libs.findVersion("sdk-min").get().requiredVersion.toInt()
     val compileSdkVersion = libs.findVersion("sdk-compile").get().requiredVersion.toInt()
+    val targetSdkVersion = libs.findVersion("sdk-target").get().requiredVersion.toInt()
     val namespace = "dae.aevum." + path.removePrefix(":").replace(':', '.')
     println("Configuring $namespace")
 
@@ -65,6 +66,7 @@ fun Project.baseSetup() {
         }
         defaultConfig {
             minSdk = minSdkVersion
+            targetSdk = targetSdkVersion
         }
         testOptions {
             unitTests.isReturnDefaultValues = true

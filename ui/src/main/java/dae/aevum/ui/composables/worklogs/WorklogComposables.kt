@@ -96,16 +96,15 @@ fun WorklogCard(
         worklogTo = worklogUiModel.to
     }
 
+    val canOpenEditor = worklogUiModel.pending && !worklogUiModel.active
+
     Card(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(enabled = !worklogUiModel.active) {
+                .clickable(enabled = canOpenEditor) {
                     Timber.v("Clicked on worklog")
-
-                    if (!worklogUiModel.active) {
-                        onNavigate(worklogUiModel)
-                    }
+                    onNavigate(worklogUiModel)
                 },
         colors =
             CardDefaults.cardColors(
