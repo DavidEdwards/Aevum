@@ -8,6 +8,7 @@ import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.appwidget.updateAll
+import dae.aevum.MainActivity
 import dae.aevum.utils.Intents
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +73,15 @@ class StartLastIssueAction : ActionCallback {
             val user = userRepo.getActiveUser() ?: return@withContext
             val works = db.worklogDao().getAllWorks().filter { it.userId == user.id }
             val last = works.maxByOrNull { it.from } ?: return@withContext
-            repo.startLogFor(last.issueId)
+            val closedId = repo.startLogFor(last.issueId)
+            if (closedId != null) {
+                val editorIntent =
+                    Intent(context, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        putExtra(Intents.EXTRA_OPEN_WORKLOG_EDITOR_ID, closedId)
+                    }
+                context.startActivity(editorIntent)
+            }
         }
         // touch glance state to invalidate composition
         updateAppWidgetState(context, glanceId) { prefs ->

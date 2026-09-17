@@ -23,7 +23,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -117,6 +120,13 @@ class IssueViewModel
             savedStateHandle[SAVED_VIEWED_ISSUE_ID] = id?.value
         }
 
+        private val _refreshError = MutableStateFlow<String?>(null)
+        val refreshError: StateFlow<String?> = _refreshError.asStateFlow()
+
+        fun clearRefreshError() {
+            _refreshError.value = null
+        }
+
         fun searchRemoteIfNeeded(localEmpty: Boolean) {
             val term = searchTerm.trim()
             if (!localEmpty || term.isBlank()) {
@@ -136,23 +146,33 @@ class IssueViewModel
         fun refreshIssues() =
             viewModelScope.launch {
                 Timber.v("Refreshing issues…")
-                repository.refreshIssuesfromJira()
+                repository.refreshIssuesfromJira().onFailure { e ->
+                    _refreshError.value = e.message ?: "Refresh failed"
+                }
             }
 
         fun refreshWorklogsFor(issueId: IssueId) =
             viewModelScope.launch {
                 Timber.v("Refreshing worklogs…")
-                repository.refreshWorklogsFor(issueId)
+                repository.refreshWorklogsFor(issueId).onFailure { e ->
+                    _refreshError.value = e.message ?: "Refresh failed"
+                }
             }
 
-        fun startLogFor(issueId: IssueId) {
+        fun startLogFor(
+            issueId: IssueId,
+            onClosedPrevious: (Long) -> Unit = {},
+        ) {
             viewModelScope.launch {
-                repository.startLogFor(issueId)
+                val closedId = repository.startLogFor(issueId)
                 // Notify widget to refresh immediately (explicit to this app)
                 val intent = Intent(Intents.ACTION_WORKLOG_CHANGED).setPackage(appContext.packageName)
                 appContext.sendBroadcast(intent, "dae.aevum.permission.WORKLOG_CHANGED")
                 // Direct refresh via DI to avoid relying only on the broadcast
                 widgetRefresher.refreshAll()
+                if (closedId != null) {
+                    onClosedPrevious(closedId)
+                }
             }
         }
 

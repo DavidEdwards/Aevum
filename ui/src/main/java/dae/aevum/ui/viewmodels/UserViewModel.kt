@@ -6,11 +6,14 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dae.aevum.domain.preferences.TimesheetPreferences
+import dae.aevum.domain.preferences.TimesheetTargets
 import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.ui.models.UserUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -32,6 +35,7 @@ class UserViewModel
         private val savedStateHandle: SavedStateHandle,
         private val userRepository: UserRepository,
         private val jiraRepository: JiraRepository,
+        private val timesheetPreferences: TimesheetPreferences,
     ) : ViewModel() {
         var instanceUrl: String = savedStateHandle[SAVED_INSTANCE_URL] ?: ""
             set(value) {
@@ -183,6 +187,25 @@ class UserViewModel
                 } finally {
                     loading = false
                 }
+            }
+        }
+
+        val timesheetTargets: StateFlow<TimesheetTargets> =
+            timesheetPreferences.targets.stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                TimesheetTargets(),
+            )
+
+        fun setWeekdayTargetHours(hours: Double) {
+            viewModelScope.launch {
+                timesheetPreferences.setWeekdayTargetHours(hours)
+            }
+        }
+
+        fun setWeekTargetHours(hours: Double) {
+            viewModelScope.launch {
+                timesheetPreferences.setWeekTargetHours(hours)
             }
         }
 

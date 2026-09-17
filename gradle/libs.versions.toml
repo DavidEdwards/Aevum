@@ -32,6 +32,7 @@ material = "1.14.0"
 glance = "1.2.0"
 splashscreen = "1.2.0"
 security-crypto = "1.1.0"
+datastore = "1.2.1"
 
 ktlint-core = "1.8.0"
 ktlint-gradlePlugin = "0.14.0"
@@ -94,6 +95,7 @@ material = { group = "com.google.android.material", name = "material", version.r
 glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security-crypto" }
+datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
 ktlint-core = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlint-core" }
 ktlint-gradlePlugin = { module = "io.github.usefulness:ktlint-gradle-plugin", version.ref = "ktlint-gradlePlugin" }

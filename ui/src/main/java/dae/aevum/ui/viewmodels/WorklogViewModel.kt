@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dae.aevum.domain.preferences.TimesheetPreferences
+import dae.aevum.domain.preferences.TimesheetTargets
 import dae.aevum.domain.repositories.AudioRepository
 import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.WidgetRefresher
@@ -19,11 +21,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import androidx.paging.PagingData
@@ -44,7 +48,15 @@ class WorklogViewModel
         private val audioRepository: AudioRepository,
         @param:ApplicationContext private val appContext: Context,
         private val widgetRefresher: WidgetRefresher,
+        private val timesheetPreferences: TimesheetPreferences,
     ) : ViewModel() {
+        val timesheetTargets: StateFlow<TimesheetTargets> =
+            timesheetPreferences.targets.stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                TimesheetTargets(),
+            )
+
         val worklogBeingViewed =
             savedStateHandle
                 .getStateFlow<Long?>(SAVED_VIEWED_WORKLOG_ID, null)
@@ -112,6 +124,20 @@ class WorklogViewModel
 
         private val _isRefreshingSummary = MutableStateFlow(false)
         val isRefreshingSummary: StateFlow<Boolean> = _isRefreshingSummary.asStateFlow()
+
+        private val _summaryRefreshError = MutableStateFlow<String?>(null)
+        val summaryRefreshError: StateFlow<String?> = _summaryRefreshError.asStateFlow()
+
+        private val _splitError = MutableStateFlow<String?>(null)
+        val splitError: StateFlow<String?> = _splitError.asStateFlow()
+
+        fun clearSummaryRefreshError() {
+            _summaryRefreshError.value = null
+        }
+
+        fun clearSplitError() {
+            _splitError.value = null
+        }
 
         fun setViewedWorklogId(id: Long?) {
             savedStateHandle[SAVED_VIEWED_WORKLOG_ID] = id
@@ -201,14 +227,20 @@ class WorklogViewModel
                     val success = jiraRepository.splitWorklog(worklogId, issueId, splitTime, withNewId)
                     if (!success) {
                         Timber.e("Split worklog operation returned false for worklogId: $worklogId")
+                        _splitError.value = "split_failed"
                     } else {
                         widgetRefresher.refreshAll()
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to split worklog $worklogId to issue ${issueId.value}")
+                    _splitError.value = e.message ?: "split_failed"
                 }
             }
         }
+
+        /** Count of non-active pending worklogs with blank summaries. */
+        fun countBlankSummaries(pending: List<WorklogUiModel>): Int =
+            pending.count { !it.active && it.comment.isBlank() }
 
         fun deleteLog(
             worklogId: Long,
@@ -264,26 +296,34 @@ class WorklogViewModel
             }
         }
 
-        fun stopLoggingAudioLog(after: () -> Unit = {}) {
+        fun stopLoggingAudioLog(
+            worklogId: Long,
+            after: (summary: String) -> Unit = {},
+        ) {
             viewModelScope.launch {
                 _isStoppingWorklog.value = true
                 try {
                     val summary = audioRepository.getAudioText()
-                    jiraRepository.stopLogging(summary)
+                    jiraRepository.stopLoggingFor(worklogId, summary)
                     widgetRefresher.refreshAll()
-                    after()
+                    after(summary)
                 } finally {
                     _isStoppingWorklog.value = false
                 }
             }
         }
 
-        suspend fun stopLoggingAudioLogAwait() {
+        /**
+         * Stops the given worklog with speech-to-text summary.
+         * @return the captured summary (may be blank if speech failed or was empty)
+         */
+        suspend fun stopLoggingAudioLogAwait(worklogId: Long): String {
             _isStoppingWorklog.value = true
             try {
                 val summary = audioRepository.getAudioText()
-                jiraRepository.stopLogging(summary)
+                jiraRepository.stopLoggingFor(worklogId, summary)
                 widgetRefresher.refreshAll()
+                return summary
             } finally {
                 _isStoppingWorklog.value = false
             }
@@ -292,15 +332,20 @@ class WorklogViewModel
         fun refreshWorklogsToday(): Job =
             viewModelScope.launch {
                 Timber.v("Refreshing worklogs for today from Jira...")
-                jiraRepository.refreshWorklogsToday()
+                jiraRepository.refreshWorklogsToday().onFailure { e ->
+                    _summaryRefreshError.value = e.message ?: "Refresh failed"
+                }
             }
 
         fun refreshWorklogsLastTwoWeeks(): Job =
             viewModelScope.launch {
                 _isRefreshingSummary.value = true
+                _summaryRefreshError.value = null
                 try {
                     Timber.v("Refreshing worklogs for last two weeks from Jira…")
-                    jiraRepository.refreshWorklogsForLastTwoWeeks()
+                    jiraRepository.refreshWorklogsForLastTwoWeeks().onFailure { e ->
+                        _summaryRefreshError.value = e.message ?: "Refresh failed"
+                    }
                 } finally {
                     _isRefreshingSummary.value = false
                 }

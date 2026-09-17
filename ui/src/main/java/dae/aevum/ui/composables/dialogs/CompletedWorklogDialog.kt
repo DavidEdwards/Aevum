@@ -87,8 +87,12 @@ fun CompletedWorklogDialog(
                         enabled = !isStoppingWorklog,
                         onClick = {
                             scope.launch {
-                                viewModel.stopLoggingAudioLogAwait()
-                                navController.popBackStack()
+                                val summary = viewModel.stopLoggingAudioLogAwait(worklogId)
+                                if (summary.isBlank()) {
+                                    navController.navigate("worklogEditor/$worklogId")
+                                } else {
+                                    navController.popBackStack()
+                                }
                             }
                         },
                     ) {

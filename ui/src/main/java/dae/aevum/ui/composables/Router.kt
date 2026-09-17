@@ -176,6 +176,8 @@ fun Router(
     onReady: () -> Unit = {},
     pendingStopWorklogId: Long? = null,
     onStopDialogOpened: () -> Unit = {},
+    pendingEditorWorklogId: Long? = null,
+    onEditorOpened: () -> Unit = {},
 ) {
     val navController = rememberNavController()
 
@@ -197,6 +199,12 @@ fun Router(
         val id = pendingStopWorklogId ?: return@LaunchedEffect
         navController.navigate("worklog/new/$id")
         onStopDialogOpened()
+    }
+
+    LaunchedEffect(pendingEditorWorklogId) {
+        val id = pendingEditorWorklogId ?: return@LaunchedEffect
+        navController.navigate("worklogEditor/$id")
+        onEditorOpened()
     }
 
     AppScaffold(navController = navController, currentScreen = currentScreen, onReady = onReady)
@@ -433,6 +441,7 @@ private fun Fab(
     snackbarHostState: androidx.compose.material.SnackbarHostState,
 ) {
     val uploadState by worklogViewModel.uploadState.collectAsState()
+    val splitError by worklogViewModel.splitError.collectAsState()
     val successMessage =
         (uploadState as? dae.aevum.utils.WorklogUploadResult.Success)?.let {
             stringResource(R.string.upload_worklogs_success, it.uploadedCount)
@@ -442,6 +451,7 @@ private fun Fab(
             stringResource(R.string.upload_worklogs_partial, it.failedIssueKeys.joinToString())
         }
     val failedFallback = stringResource(R.string.upload_worklogs_failed)
+    val splitFailedMessage = stringResource(R.string.split_worklog_failed)
 
     LaunchedEffect(uploadState) {
         when (val state = uploadState) {
@@ -461,10 +471,19 @@ private fun Fab(
         }
     }
 
+    LaunchedEffect(splitError) {
+        if (splitError != null) {
+            snackbarHostState.showSnackbar(splitFailedMessage)
+            worklogViewModel.clearSplitError()
+        }
+    }
+
     if (currentScreen is Screen.Worklogs) {
         val pendingWorklogs by worklogViewModel.pendingWorklogs.collectAsState(initial = emptyList())
         val nonActivePending = pendingWorklogs.filter { !it.active }
         val isUploading = uploadState is dae.aevum.utils.WorklogUploadResult.Running
+        var showBlankSummaryDialog by remember { mutableStateOf(false) }
+        val blankCount = worklogViewModel.countBlankSummaries(pendingWorklogs)
         val uploadContentDescription =
             if (isUploading) {
                 stringResource(R.string.upload_worklogs_running)
@@ -472,12 +491,51 @@ private fun Fab(
                 stringResource(R.string.upload_worklogs)
             }
 
+        if (showBlankSummaryDialog) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showBlankSummaryDialog = false },
+                title = { Text(stringResource(R.string.blank_summary_upload_title)) },
+                text = {
+                    Text(
+                        text =
+                            androidx.compose.ui.res.pluralStringResource(
+                                R.plurals.blank_summary_upload_message,
+                                blankCount,
+                                blankCount,
+                            ),
+                    )
+                },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            showBlankSummaryDialog = false
+                            Timber.v("Uploading pending worklogs to Jira (blank summaries confirmed)")
+                            worklogViewModel.postPendingWorklogs()
+                        },
+                    ) {
+                        Text(stringResource(R.string.upload_anyway))
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = { showBlankSummaryDialog = false },
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
+
         if (nonActivePending.isNotEmpty() || isUploading) {
             FloatingActionButton(
                 onClick = {
                     if (!isUploading) {
-                        Timber.v("Uploading pending worklogs to Jira")
-                        worklogViewModel.postPendingWorklogs()
+                        if (blankCount > 0) {
+                            showBlankSummaryDialog = true
+                        } else {
+                            Timber.v("Uploading pending worklogs to Jira")
+                            worklogViewModel.postPendingWorklogs()
+                        }
                     }
                 },
                 backgroundColor = MaterialTheme.colorScheme.primary,
@@ -554,6 +612,11 @@ private fun AppNavHost(
                     onTogglePinIssue = { issueId ->
                         viewModel.toggleIssuePin(issueId)
                     },
+                    onNavigateToSummary = {
+                        navController.navigate(Screen.Summary.route) {
+                            popUpTo(navController.graph.findStartDestination().id)
+                        }
+                    },
                 )
             }
             composable(Screen.IssueView.route) { backStackEntry ->
@@ -616,17 +679,24 @@ private fun AppNavHost(
             }
             composable(Screen.Summary.route) {
                 val viewModel: WorklogViewModel = hiltViewModel()
+                val targets by viewModel.timesheetTargets.collectAsState()
                 WorklogSummaryScreen(
                     viewModel = viewModel,
                     onOpenBarChart = { navController.navigate(Screen.SummaryBar.route) },
                     onOpenDayDetailsForDay = { day ->
                         navController.navigate("summary/details/$day")
                     },
+                    weekdayTargetHours = targets.weekdayTargetHours,
+                    weekTargetHours = targets.weekTargetHours,
                 )
             }
             composable(Screen.SummaryBar.route) {
                 val viewModel: WorklogViewModel = hiltViewModel()
-                WorklogBarChartScreen(viewModel = viewModel)
+                val targets by viewModel.timesheetTargets.collectAsState()
+                WorklogBarChartScreen(
+                    viewModel = viewModel,
+                    weekdayTargetHours = targets.weekdayTargetHours,
+                )
             }
             composable(Screen.SummaryDetails.route) {
                 val viewModel: WorklogViewModel = hiltViewModel()

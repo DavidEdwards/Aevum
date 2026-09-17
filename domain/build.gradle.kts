@@ -19,6 +19,8 @@ dependencies {
 
     implementation(libs.room.runtime)
 
+    implementation(libs.datastore.preferences)
+
     // region Dependency Injection
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

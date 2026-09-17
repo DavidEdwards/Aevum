@@ -58,6 +58,27 @@ class WorklogTimeHelpersTest {
     }
 
     @Test
+    fun dayTargetHours_customWeekdayTarget() {
+        assertEquals(6.0, WorklogTimeHelpers.dayTargetHours(LocalDate.of(2026, 9, 14), 6.0), 0.0)
+        assertEquals(0.0, WorklogTimeHelpers.dayTargetHours(LocalDate.of(2026, 9, 19), 6.0), 0.0)
+    }
+
+    @Test
+    fun progressFraction_handlesZeroTargetAndOvertimeCap() {
+        assertEquals(0f, WorklogTimeHelpers.progressFraction(0.0, 0.0), 0.001f)
+        assertEquals(1f, WorklogTimeHelpers.progressFraction(2.0, 0.0), 0.001f)
+        assertEquals(0.5f, WorklogTimeHelpers.progressFraction(4.0, 8.0), 0.001f)
+        assertEquals(1f, WorklogTimeHelpers.progressFraction(10.0, 8.0), 0.001f)
+    }
+
+    @Test
+    fun overtimeHours_returnsSurplusOnly() {
+        assertEquals(0.0, WorklogTimeHelpers.overtimeHours(7.0, 8.0), 0.001)
+        assertEquals(1.5, WorklogTimeHelpers.overtimeHours(9.5, 8.0), 0.001)
+        assertEquals(3.0, WorklogTimeHelpers.overtimeHours(3.0, 0.0), 0.001)
+    }
+
+    @Test
     fun effectiveTo_usesNowWhenActive() {
         val from = Instant.parse("2026-09-17T08:00:00Z")
         val to = Instant.parse("2026-09-17T08:00:00Z")

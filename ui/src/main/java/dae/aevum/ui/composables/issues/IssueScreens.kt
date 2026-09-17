@@ -25,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -56,6 +57,7 @@ fun IssueListScreen(
     viewModel: IssueViewModel = hiltViewModel(),
     onNavigateToIssue: (IssueId) -> Unit,
     onTogglePinIssue: (IssueId) -> Unit = {},
+    onNavigateToSummary: () -> Unit = {},
 ) {
     val activeUser by viewModel.activeUser.collectAsState(initial = null)
     if (activeUser == null) {
@@ -63,16 +65,21 @@ fun IssueListScreen(
         return
     }
 
+    val worklogViewModel: WorklogViewModel = hiltViewModel()
+
     LaunchedEffect(Unit) {
         Timber.v("Reload issue list screen")
         viewModel.refreshIssues()
+        worklogViewModel.refreshWorklogsToday()
     }
 
     IssueList(
         modifier = modifier,
         viewModel = viewModel,
+        worklogViewModel = worklogViewModel,
         onIssueSelected = onNavigateToIssue,
         onTogglePinIssue = onTogglePinIssue,
+        onNavigateToSummary = onNavigateToSummary,
     )
 }
 
@@ -81,25 +88,40 @@ fun IssueListScreen(
 fun IssueList(
     modifier: Modifier = Modifier,
     viewModel: IssueViewModel = hiltViewModel(),
+    worklogViewModel: WorklogViewModel = hiltViewModel(),
     onIssueSelected: (IssueId) -> Unit,
     onTogglePinIssue: ((IssueId) -> Unit)? = null,
+    onNavigateToSummary: () -> Unit = {},
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = IssuesTab.entries
+    val refreshError by viewModel.refreshError.collectAsState()
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+    val refreshFailedMessage = stringResource(R.string.refresh_failed)
+
+    LaunchedEffect(refreshError) {
+        if (refreshError != null) {
+            snackbarHostState.showSnackbar(refreshFailedMessage)
+            viewModel.clearRefreshError()
+        }
+    }
 
     Column(
         modifier =
             modifier
                 .padding(horizontal = 16.dp),
     ) {
-        val worklogViewModel: WorklogViewModel = hiltViewModel()
         val progress by worklogViewModel.timesheetProgress.collectAsState(
             initial = dae.aevum.utils.TimesheetProgress(0.0, 0.0),
         )
+        val targets by worklogViewModel.timesheetTargets.collectAsState()
         TimesheetProgressBanner(
             todayHours = progress.todayHours,
             weekHours = progress.weekHours,
             compact = true,
+            weekdayTargetHours = targets.weekdayTargetHours,
+            weekTargetHours = targets.weekTargetHours,
+            onClick = onNavigateToSummary,
         )
         PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
             tabs.forEachIndexed { index, tab ->
@@ -122,19 +144,27 @@ fun IssueList(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        when (tabs[selectedTabIndex]) {
-            IssuesTab.Search ->
-                SearchIssuesContent(
-                    viewModel = viewModel,
-                    onIssueSelected = onIssueSelected,
-                    onTogglePinIssue = onTogglePinIssue,
-                )
-            IssuesTab.Favourites ->
-                FavouritesIssuesContent(
-                    viewModel = viewModel,
-                    onIssueSelected = onIssueSelected,
-                    onTogglePinIssue = onTogglePinIssue,
-                )
+        Box {
+            when (tabs[selectedTabIndex]) {
+                IssuesTab.Search ->
+                    SearchIssuesContent(
+                        viewModel = viewModel,
+                        worklogViewModel = worklogViewModel,
+                        onIssueSelected = onIssueSelected,
+                        onTogglePinIssue = onTogglePinIssue,
+                    )
+                IssuesTab.Favourites ->
+                    FavouritesIssuesContent(
+                        viewModel = viewModel,
+                        worklogViewModel = worklogViewModel,
+                        onIssueSelected = onIssueSelected,
+                        onTogglePinIssue = onTogglePinIssue,
+                    )
+            }
+            androidx.compose.material3.SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 }
@@ -143,6 +173,7 @@ fun IssueList(
 @Composable
 private fun SearchIssuesContent(
     viewModel: IssueViewModel,
+    worklogViewModel: WorklogViewModel,
     onIssueSelected: (IssueId) -> Unit,
     onTogglePinIssue: ((IssueId) -> Unit)?,
 ) {
@@ -155,6 +186,7 @@ private fun SearchIssuesContent(
         refreshScope.launch {
             refreshing = true
             viewModel.refreshIssues().join()
+            worklogViewModel.refreshWorklogsToday().join()
             pagingItems.refresh()
             refreshing = false
         }
@@ -246,6 +278,7 @@ private fun SearchIssuesContent(
 @Composable
 private fun FavouritesIssuesContent(
     viewModel: IssueViewModel,
+    worklogViewModel: WorklogViewModel,
     onIssueSelected: (IssueId) -> Unit,
     onTogglePinIssue: ((IssueId) -> Unit)?,
 ) {
@@ -258,6 +291,7 @@ private fun FavouritesIssuesContent(
         refreshScope.launch {
             refreshing = true
             viewModel.refreshIssues().join()
+            worklogViewModel.refreshWorklogsToday().join()
             refreshing = false
         }
     }
@@ -354,7 +388,9 @@ fun IssueScreen(
         IssueDetails(
             model = model!!,
             startLogging = {
-                viewModel.startLogFor(it)
+                viewModel.startLogFor(it) { closedId ->
+                    onNavigateToEditor(closedId)
+                }
             },
             stopLogging = stopLogging,
             deleteWorklog = deleteWorklog,

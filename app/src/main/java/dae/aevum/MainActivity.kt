@@ -18,13 +18,14 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private var isReady = false
     private var pendingStopWorklogId by mutableStateOf<Long?>(null)
+    private var pendingEditorWorklogId by mutableStateOf<Long?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
 
         splashScreen.setKeepOnScreenCondition { !isReady }
-        consumeStopExtra(intent)
+        consumeDeepLinkExtras(intent)
 
         enableEdgeToEdge()
         setContent {
@@ -33,6 +34,8 @@ class MainActivity : ComponentActivity() {
                     onReady = { isReady = true },
                     pendingStopWorklogId = pendingStopWorklogId,
                     onStopDialogOpened = { pendingStopWorklogId = null },
+                    pendingEditorWorklogId = pendingEditorWorklogId,
+                    onEditorOpened = { pendingEditorWorklogId = null },
                 )
             }
         }
@@ -41,14 +44,19 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        consumeStopExtra(intent)
+        consumeDeepLinkExtras(intent)
     }
 
-    private fun consumeStopExtra(intent: Intent?) {
-        val id = intent?.getLongExtra(Intents.EXTRA_OPEN_STOP_WORKLOG_ID, -1L) ?: -1L
-        if (id > 0) {
-            pendingStopWorklogId = id
+    private fun consumeDeepLinkExtras(intent: Intent?) {
+        val stopId = intent?.getLongExtra(Intents.EXTRA_OPEN_STOP_WORKLOG_ID, -1L) ?: -1L
+        if (stopId > 0) {
+            pendingStopWorklogId = stopId
             intent?.removeExtra(Intents.EXTRA_OPEN_STOP_WORKLOG_ID)
+        }
+        val editorId = intent?.getLongExtra(Intents.EXTRA_OPEN_WORKLOG_EDITOR_ID, -1L) ?: -1L
+        if (editorId > 0) {
+            pendingEditorWorklogId = editorId
+            intent?.removeExtra(Intents.EXTRA_OPEN_WORKLOG_EDITOR_ID)
         }
     }
 }

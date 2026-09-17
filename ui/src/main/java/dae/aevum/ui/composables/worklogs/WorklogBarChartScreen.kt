@@ -31,7 +31,10 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 @Composable
-fun WorklogBarChartScreen(viewModel: WorklogViewModel = hiltViewModel()) {
+fun WorklogBarChartScreen(
+    viewModel: WorklogViewModel = hiltViewModel(),
+    weekdayTargetHours: Double = WorklogTimeHelpers.WEEKDAY_TARGET_HOURS,
+) {
     val worklogs by viewModel.worklogIssuesLastTwoWeeks.collectAsState(initial = emptyList())
     val hasActive = worklogs.any { it.active }
     val nowState = remember { mutableStateOf(Instant.now()) }
@@ -69,6 +72,7 @@ fun WorklogBarChartScreen(viewModel: WorklogViewModel = hiltViewModel()) {
     val goodColor = MaterialTheme.colorScheme.primary
     val badColor = MaterialTheme.colorScheme.error
     val lineColor = Color.Gray
+    val weekdayTargetLine = weekdayTargetHours.toFloat()
 
     Column(
         Modifier
@@ -90,8 +94,7 @@ fun WorklogBarChartScreen(viewModel: WorklogViewModel = hiltViewModel()) {
             if (barCount == 0) return@Canvas
             val widthPerBar = size.width / (barCount * 1.5f)
             val gap = widthPerBar / 2f
-            val maxHours = (values.maxOrNull() ?: 8f).coerceAtLeast(8f)
-            val weekdayTargetLine = WorklogTimeHelpers.WEEKDAY_TARGET_HOURS.toFloat()
+            val maxHours = (values.maxOrNull() ?: weekdayTargetLine).coerceAtLeast(weekdayTargetLine)
 
             values.forEachIndexed { index, hours ->
                 val day = orderedDays[index]
@@ -100,7 +103,7 @@ fun WorklogBarChartScreen(viewModel: WorklogViewModel = hiltViewModel()) {
                 val y = size.height - barHeight
                 drawRect(
                     color =
-                        if (WorklogTimeHelpers.isDayOnTrack(hours, day)) {
+                        if (WorklogTimeHelpers.isDayOnTrack(hours, day, weekdayTargetHours)) {
                             goodColor
                         } else {
                             badColor
@@ -110,7 +113,7 @@ fun WorklogBarChartScreen(viewModel: WorklogViewModel = hiltViewModel()) {
                 )
             }
 
-            // Draw weekday 8h target line as visual reference
+            // Draw weekday target line as visual reference
             val targetY = size.height - (weekdayTargetLine / maxHours) * size.height * 0.8f
             drawLine(
                 color = lineColor,

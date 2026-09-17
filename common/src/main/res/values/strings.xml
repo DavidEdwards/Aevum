@@ -83,4 +83,16 @@
     <string name="timer_action_add_15">+15m</string>
     <string name="timer_action_sub_15">-15m</string>
     <string name="searching_remote_issues">Searching Jira…</string>
+    <string name="refresh_failed">Could not refresh from Jira. Showing local data.</string>
+    <string name="split_worklog_failed">Could not split worklog</string>
+    <string name="blank_summary_upload_title">Missing worklog comments</string>
+    <plurals name="blank_summary_upload_message">
+        <item quantity="one">%d pending worklog has no comment. Upload anyway?</item>
+        <item quantity="other">%d pending worklogs have no comment. Upload anyway?</item>
+    </plurals>
+    <string name="upload_anyway">Upload anyway</string>
+    <string name="cancel">Cancel</string>
+    <string name="weekday_target_hours">Hours per weekday</string>
+    <string name="week_target_hours">Hours per week</string>
+    <string name="timesheet_targets">Timesheet targets</string>
 </resources>

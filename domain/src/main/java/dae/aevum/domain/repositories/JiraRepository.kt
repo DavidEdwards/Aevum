@@ -40,11 +40,11 @@ interface JiraRepository {
 
     fun flowPinnedIssues(): Flow<List<IssueEntity>>
 
-    suspend fun refreshIssuesfromJira()
+    suspend fun refreshIssuesfromJira(): Result<Unit>
 
-    suspend fun refreshWorklogsFor(issueId: IssueId)
+    suspend fun refreshWorklogsFor(issueId: IssueId): Result<Unit>
 
-    suspend fun refreshWorklogsToday()
+    suspend fun refreshWorklogsToday(): Result<Unit>
 
     fun flowIssue(issueId: IssueId): Flow<IssueEntity>
 
@@ -52,7 +52,11 @@ interface JiraRepository {
 
     fun worklogsForIssue(issueId: IssueId): Flow<List<WorklogEntity>>
 
-    suspend fun startLogFor(issueId: IssueId)
+    /**
+     * Starts a timer for [issueId]. If another issue was active, that worklog is finalized
+     * as pending and its id is returned so the UI can prompt for a summary.
+     */
+    suspend fun startLogFor(issueId: IssueId): Long?
 
     fun flowActiveIssue(): Flow<ActiveIssueEntity?>
 
@@ -114,7 +118,7 @@ interface JiraRepository {
         token: String,
     ): Boolean
 
-    suspend fun refreshWorklogsForLastTwoWeeks()
+    suspend fun refreshWorklogsForLastTwoWeeks(): Result<Unit>
 
     suspend fun getLatestIssuesForProject(
         projectKey: String,
@@ -169,12 +173,12 @@ class JiraRepositoryImpl(
             database.issueDao().flowPinnedIssues(user.id)
         }
 
-    override suspend fun refreshIssuesfromJira() =
+    override suspend fun refreshIssuesfromJira(): Result<Unit> =
         supervisorScope {
-            return@supervisorScope try {
+            try {
                 val user =
                     userRepository.getActiveUser()
-                        ?: return@supervisorScope
+                        ?: return@supervisorScope Result.success(Unit)
 
                 yield()
 
@@ -188,16 +192,18 @@ class JiraRepositoryImpl(
                 val entityList = jira.searchIssues(user.id, searches)
 
                 database.issueDao().refreshWith(user.id, entityList)
+                Result.success(Unit)
             } catch (e: Exception) {
                 Timber.e(e)
+                Result.failure(e)
             }
         }
 
-    override suspend fun refreshWorklogsFor(issueId: IssueId) {
-        try {
+    override suspend fun refreshWorklogsFor(issueId: IssueId): Result<Unit> {
+        return try {
             val user =
                 userRepository.getActiveUser()
-                    ?: return
+                    ?: return Result.success(Unit)
 
             // Ensure the issue exists in the database
             ensureIssueExists(user.id, issueId)
@@ -215,16 +221,18 @@ class JiraRepositoryImpl(
             if (entities.isNotEmpty()) {
                 database.worklogDao().upsertRemoteWorks(entities)
             }
+            Result.success(Unit)
         } catch (e: Exception) {
             Timber.e(e)
+            Result.failure(e)
         }
     }
 
-    override suspend fun refreshWorklogsToday() {
-        try {
+    override suspend fun refreshWorklogsToday(): Result<Unit> {
+        return try {
             val user =
                 userRepository.getActiveUser()
-                    ?: return
+                    ?: return Result.success(Unit)
 
             yield()
             val entities =
@@ -242,8 +250,10 @@ class JiraRepositoryImpl(
 
                 database.worklogDao().upsertRemoteWorks(entities)
             }
+            Result.success(Unit)
         } catch (e: Exception) {
             Timber.e(e)
+            Result.failure(e)
         }
     }
 
@@ -288,25 +298,27 @@ class JiraRepositoryImpl(
             database.worklogDao().flowWorkByIssueId(issueId.value, user.id)
         }
 
-    override suspend fun startLogFor(issueId: IssueId) {
+    override suspend fun startLogFor(issueId: IssueId): Long? {
         val user =
             userRepository.getActiveUser()
-                ?: return
+                ?: return null
 
         val now = Instant.now()
+        var closedWorklogId: Long? = null
         val active = database.worklogDao().getActiveWorklogForUser(user.id)
         if (active != null) {
             if (active.issueId == issueId) {
                 // Already timing this issue
-                return
+                return null
             }
-            // Finalize previous timer as pending (no summary prompt on switch)
+            // Finalize previous timer as pending (UI should prompt for summary)
             database.worklogDao().updateWork(
                 active.copy(
                     active = false,
                     to = now,
                 ),
             )
+            closedWorklogId = active.workId
         }
 
         database.worklogDao().addWork(
@@ -324,6 +336,7 @@ class JiraRepositoryImpl(
                 active = true,
             ),
         )
+        return closedWorklogId
     }
 
     override fun flowActiveIssue(): Flow<ActiveIssueEntity?> {
@@ -514,9 +527,9 @@ class JiraRepositoryImpl(
             }
         }
 
-    override suspend fun refreshWorklogsForLastTwoWeeks() {
-        try {
-            val user = userRepository.getActiveUser() ?: return
+    override suspend fun refreshWorklogsForLastTwoWeeks(): Result<Unit> {
+        return try {
+            val user = userRepository.getActiveUser() ?: return Result.success(Unit)
 
             val (start, end) = WorklogTimeHelpers.lastTwoWeeksWindow()
 
@@ -541,8 +554,10 @@ class JiraRepositoryImpl(
                     )
                 }
             }
+            Result.success(Unit)
         } catch (e: Exception) {
             Timber.e(e)
+            Result.failure(e)
         }
     }
 

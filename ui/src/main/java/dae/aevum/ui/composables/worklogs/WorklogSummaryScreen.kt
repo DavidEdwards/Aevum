@@ -55,14 +55,27 @@ fun WorklogSummaryScreen(
     viewModel: WorklogViewModel = hiltViewModel(),
     onOpenBarChart: () -> Unit,
     onOpenDayDetailsForDay: (LocalDate) -> Unit,
+    onBannerClick: (() -> Unit)? = null,
+    weekdayTargetHours: Double = WorklogTimeHelpers.WEEKDAY_TARGET_HOURS,
+    weekTargetHours: Double = WorklogTimeHelpers.WEEK_TARGET_HOURS,
 ) {
     val worklogs by viewModel.worklogIssuesLastTwoWeeks.collectAsState(initial = emptyList())
     val progress by viewModel.timesheetProgress.collectAsState(initial = TimesheetProgress(0.0, 0.0))
     val isRefreshing by viewModel.isRefreshingSummary.collectAsState()
+    val refreshError by viewModel.summaryRefreshError.collectAsState()
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val refreshFailedMessage = stringResource(R.string.refresh_failed)
 
     LaunchedEffect(Unit) {
         viewModel.refreshWorklogsLastTwoWeeks()
+    }
+
+    LaunchedEffect(refreshError) {
+        if (refreshError != null) {
+            snackbarHostState.showSnackbar(refreshFailedMessage)
+            viewModel.clearSummaryRefreshError()
+        }
     }
 
     val hasActive = worklogs.any { it.active }
@@ -106,11 +119,18 @@ fun WorklogSummaryScreen(
             onRefresh = { viewModel.refreshWorklogsLastTwoWeeks() },
             onOpenBarChart = onOpenBarChart,
             onOpenDayDetailsForDay = onOpenDayDetailsForDay,
+            onBannerClick = onBannerClick,
+            weekdayTargetHours = weekdayTargetHours,
+            weekTargetHours = weekTargetHours,
         )
         PullRefreshIndicator(
             refreshing = isRefreshing,
             state = pullRefreshState,
             modifier = Modifier.align(Alignment.TopCenter),
+        )
+        androidx.compose.material3.SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
 }
@@ -123,6 +143,9 @@ private fun WorklogSummaryContent(
     onRefresh: () -> Unit,
     onOpenBarChart: () -> Unit,
     onOpenDayDetailsForDay: (LocalDate) -> Unit,
+    onBannerClick: (() -> Unit)? = null,
+    weekdayTargetHours: Double = WorklogTimeHelpers.WEEKDAY_TARGET_HOURS,
+    weekTargetHours: Double = WorklogTimeHelpers.WEEK_TARGET_HOURS,
 ) {
     val orderedDays =
         (0..13)
@@ -138,6 +161,9 @@ private fun WorklogSummaryContent(
         TimesheetProgressBanner(
             todayHours = progress.todayHours,
             weekHours = progress.weekHours,
+            weekdayTargetHours = weekdayTargetHours,
+            weekTargetHours = weekTargetHours,
+            onClick = onBannerClick,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(
@@ -162,8 +188,8 @@ private fun WorklogSummaryContent(
                     entries.sumOf {
                         WorklogTimeHelpers.hours(it.from, it.to, active = false, now = it.to)
                     }
-                val target = WorklogTimeHelpers.dayTargetHours(day)
-                val meets = WorklogTimeHelpers.meetsDayTarget(hours, day)
+                val target = WorklogTimeHelpers.dayTargetHours(day, weekdayTargetHours)
+                val meets = WorklogTimeHelpers.meetsDayTarget(hours, day, weekdayTargetHours)
 
                 Card(
                     modifier =

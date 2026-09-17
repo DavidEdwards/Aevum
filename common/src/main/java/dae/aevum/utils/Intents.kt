@@ -6,4 +6,5 @@ object Intents {
     const val ACTION_TIMER_ADD_15: String = "dae.aevum.action.TIMER_ADD_15"
     const val ACTION_TIMER_SUB_15: String = "dae.aevum.action.TIMER_SUB_15"
     const val EXTRA_OPEN_STOP_WORKLOG_ID: String = "open_stop_worklog_id"
+    const val EXTRA_OPEN_WORKLOG_EDITOR_ID: String = "open_worklog_editor_id"
 }

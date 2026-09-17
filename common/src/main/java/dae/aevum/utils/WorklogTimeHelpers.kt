@@ -52,22 +52,46 @@ object WorklogTimeHelpers {
         return startOfDay(monday, zone) to startOfDay(nextMonday, zone)
     }
 
-    fun dayTargetHours(day: LocalDate): Double =
-        if (day.dayOfWeek.value in 1..5) WEEKDAY_TARGET_HOURS else WEEKEND_TARGET_HOURS
+    fun dayTargetHours(
+        day: LocalDate,
+        weekdayTargetHours: Double = WEEKDAY_TARGET_HOURS,
+    ): Double =
+        if (day.dayOfWeek.value in 1..5) weekdayTargetHours else WEEKEND_TARGET_HOURS
 
     /**
-     * Whether logged hours meet the day target (weekday 8h, weekend 0h).
+     * Whether logged hours meet the day target (weekday target, weekend 0h).
      * Weekends with catch-up hours still meet the 0h target (hours >= 0).
      */
-    fun meetsDayTarget(hours: Double, day: LocalDate): Boolean =
-        hours >= dayTargetHours(day)
+    fun meetsDayTarget(
+        hours: Double,
+        day: LocalDate,
+        weekdayTargetHours: Double = WEEKDAY_TARGET_HOURS,
+    ): Boolean = hours >= dayTargetHours(day, weekdayTargetHours)
 
     /**
-     * Bar coloring: weekdays use 8h threshold; weekends use 0h so under-8h is not marked bad.
+     * Bar coloring: weekdays use weekday threshold; weekends use 0h so under-target is not marked bad.
      * Catch-up hours on weekends still count as meeting the day target.
      */
-    fun isDayOnTrack(hours: Float, day: LocalDate): Boolean =
-        hours >= dayTargetHours(day).toFloat()
+    fun isDayOnTrack(
+        hours: Float,
+        day: LocalDate,
+        weekdayTargetHours: Double = WEEKDAY_TARGET_HOURS,
+    ): Boolean = hours >= dayTargetHours(day, weekdayTargetHours).toFloat()
+
+    /** Progress fraction for a bar; target 0 avoids divide-by-zero (weekend catch-up). */
+    fun progressFraction(
+        hours: Double,
+        target: Double,
+    ): Float =
+        when {
+            target <= 0.0 -> if (hours > 0.0) 1f else 0f
+            else -> (hours / target).toFloat().coerceIn(0f, 1f)
+        }
+
+    fun overtimeHours(
+        hours: Double,
+        target: Double,
+    ): Double = (hours - target).coerceAtLeast(0.0)
 
     fun effectiveTo(from: Instant, to: Instant, active: Boolean, now: Instant): Instant =
         if (active) now else to
