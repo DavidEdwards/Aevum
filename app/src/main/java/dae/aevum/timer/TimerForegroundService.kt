@@ -16,8 +16,8 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import dae.aevum.MainActivity
-import dae.aevum.common.R as CommonR
 import dae.aevum.domain.repositories.JiraRepository
+import dae.aevum.domain.repositories.WidgetRefresher
 import dae.aevum.utils.Intents
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -35,14 +35,19 @@ import timber.log.Timber
 import java.time.Duration
 import java.time.Instant
 import javax.inject.Inject
+import dae.aevum.common.R as CommonR
 
 @AndroidEntryPoint
 class TimerForegroundService : Service() {
     @Inject
     lateinit var jiraRepository: JiraRepository
 
+    @Inject
+    lateinit var widgetRefresher: WidgetRefresher
+
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var vibrationJob: Job? = null
+    private var widgetRefreshJob: Job? = null
     private var observeJob: Job? = null
     private var currentWorklogId: Long? = null
 
@@ -63,10 +68,12 @@ class TimerForegroundService : Service() {
                 serviceScope.launch { handleStopAction() }
                 return START_STICKY
             }
+
             Intents.ACTION_TIMER_ADD_15 -> {
                 serviceScope.launch { adjustActiveTime(+FIFTEEN_MIN_MS) }
                 return START_STICKY
             }
+
             Intents.ACTION_TIMER_SUB_15 -> {
                 serviceScope.launch { adjustActiveTime(-FIFTEEN_MIN_MS) }
                 return START_STICKY
@@ -101,6 +108,7 @@ class TimerForegroundService : Service() {
                             if (state == null) {
                                 Timber.v("No active timer; stopping foreground service")
                                 currentWorklogId = null
+                                stopWidgetRefreshLoop()
                                 stopSelfSafely()
                             } else {
                                 currentWorklogId = state.worklogId
@@ -111,6 +119,7 @@ class TimerForegroundService : Service() {
                                     worklogId = state.worklogId,
                                 )
                                 restartVibrationLoop(state.startedAt)
+                                restartWidgetRefreshLoop()
                             }
                         }
                 }
@@ -121,6 +130,7 @@ class TimerForegroundService : Service() {
 
     override fun onDestroy() {
         vibrationJob?.cancel()
+        widgetRefreshJob?.cancel()
         observeJob?.cancel()
         serviceScope.cancel()
         super.onDestroy()
@@ -144,6 +154,7 @@ class TimerForegroundService : Service() {
         } else {
             jiraRepository.decrementWorklogTime(worklogId, -deltaMs)
         }
+        widgetRefresher.refreshAll()
     }
 
     private fun ensureForeground(
@@ -228,8 +239,7 @@ class TimerForegroundService : Service() {
                     subIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
-            )
-            .addAction(
+            ).addAction(
                 0,
                 getString(CommonR.string.timer_action_add_15),
                 PendingIntent.getService(
@@ -238,8 +248,7 @@ class TimerForegroundService : Service() {
                     addIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
-            )
-            .addAction(
+            ).addAction(
                 0,
                 getString(CommonR.string.timer_action_stop),
                 PendingIntent.getService(
@@ -248,8 +257,7 @@ class TimerForegroundService : Service() {
                     stopIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
-            )
-            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            ).setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }
 
@@ -270,6 +278,26 @@ class TimerForegroundService : Service() {
                     vibrateShort()
                 }
             }
+    }
+
+    private fun restartWidgetRefreshLoop() {
+        if (widgetRefreshJob?.isActive == true) return
+        widgetRefreshJob =
+            serviceScope.launch {
+                while (isActive) {
+                    try {
+                        widgetRefresher.refreshAll()
+                    } catch (t: Throwable) {
+                        Timber.w(t, "Failed to refresh home screen widget")
+                    }
+                    delay(WIDGET_REFRESH_INTERVAL_MS)
+                }
+            }
+    }
+
+    private fun stopWidgetRefreshLoop() {
+        widgetRefreshJob?.cancel()
+        widgetRefreshJob = null
     }
 
     private fun vibrateShort() {
@@ -310,6 +338,7 @@ class TimerForegroundService : Service() {
     private fun stopSelfSafely() {
         vibrationJob?.cancel()
         vibrationJob = null
+        stopWidgetRefreshLoop()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -325,8 +354,9 @@ class TimerForegroundService : Service() {
         private const val CHANNEL_ID = "active_timer"
         private const val NOTIFICATION_ID = 1001
         private const val VIBRATION_INTERVAL_MS = 30L * 60L * 1000L
-        private const val VIBRATION_DURATION_MS = 120L
+        private const val VIBRATION_DURATION_MS = 320L
         private const val FIFTEEN_MIN_MS = 15L * 60L * 1000L
+        private const val WIDGET_REFRESH_INTERVAL_MS = 60L * 1000L
 
         private const val EXTRA_ISSUE_ID = "issue_id"
         private const val EXTRA_ISSUE_TITLE = "issue_title"

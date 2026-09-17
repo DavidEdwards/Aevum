@@ -80,6 +80,12 @@ interface IssuesDao {
     @Query("SELECT * FROM issues WHERE userId = :userId AND pinned = 1 ORDER BY sort ASC")
     fun flowPinnedIssues(userId: Int): Flow<List<IssueEntity>>
 
+    @Query(
+        "SELECT * FROM issues WHERE userId = :userId AND pinned = 1 " +
+            "ORDER BY sort ASC LIMIT 1",
+    )
+    suspend fun getFirstPinnedIssue(userId: Int): IssueEntity?
+
     @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateIssue(entity: IssueEntity)
 

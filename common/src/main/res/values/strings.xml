@@ -95,4 +95,17 @@
     <string name="weekday_target_hours">Hours per weekday</string>
     <string name="week_target_hours">Hours per week</string>
     <string name="timesheet_targets">Timesheet targets</string>
+    <string name="widget_description">Track and control your active Jira timer from the home screen</string>
+    <string name="widget_no_active_timer">No active timer</string>
+    <string name="widget_open">Open</string>
+    <string name="widget_start_issue">Start %1$s</string>
+    <string name="widget_start">Start</string>
+    <string name="widget_start_last">Start last</string>
+    <string name="widget_no_issue_to_start">Open app to start</string>
+    <string name="widget_elapsed_placeholder">0m</string>
+    <string name="widget_action_add">+15</string>
+    <string name="widget_action_sub">−15</string>
+    <string name="widget_preview_issue">PROJ-42</string>
+    <string name="widget_preview_elapsed">1:23</string>
+    <string name="widget_preview_title">Implement home screen widget</string>
 </resources>

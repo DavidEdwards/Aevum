@@ -14,8 +14,8 @@ import dae.aevum.domain.repositories.Proofreader
 import dae.aevum.domain.repositories.TokenStore
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.domain.repositories.UserRepositoryImpl
-import dae.aevum.domain.repositories.WidgetRefresher
 import dae.aevum.domain.repositories.WearActiveTimerSync
+import dae.aevum.domain.repositories.WidgetRefresher
 import dae.aevum.ml.LlamaProofreader
 import dae.aevum.network.AuthInterceptor
 import dae.aevum.network.Jira

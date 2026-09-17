@@ -104,6 +104,13 @@ interface WorklogDao {
     @Query("SELECT * FROM worklogs WHERE active = 1 AND userId = :userId LIMIT 1")
     suspend fun getActiveWorklogForUser(userId: Int): WorklogEntity?
 
+    /** Most recently completed (non-active) worklog for choosing a “start last” target. */
+    @Query(
+        "SELECT * FROM worklogs WHERE userId = :userId AND active = 0 " +
+            "ORDER BY `to` DESC LIMIT 1",
+    )
+    suspend fun getLastCompletedWorklogForUser(userId: Int): WorklogEntity?
+
     @Query("SELECT * FROM worklogs")
     suspend fun getAllWorks(): List<WorklogEntity>
 
