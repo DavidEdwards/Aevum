@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aevum</string>
+    <string name="active_timer_tile_label">Active timer</string>
+    <string name="active_timer_tile_description">Shows the Jira issue you are currently timing</string>
+    <string name="no_active_timer">No active timer</string>
+    <string name="open_on_phone">Start a timer on your phone</string>
+    <string name="wear_status_idle">Waiting for phone…</string>
+    <string name="stop">Stop</string>
+    <string name="speak_summary_for">Speak summary for %1$s</string>
+    <string name="speak_worklog_prompt">What did you work on?</string>
+    <string name="speak_again">Speak again</string>
+    <string name="stop_without_summary">Stop without summary</string>
+    <string name="speech_cancelled">Speech cancelled</string>
+    <string name="speech_unavailable">Speech not available</string>
+    <string name="mic_permission_required">Microphone permission needed</string>
+    <string name="stopping_timer">Stopping…</string>
+    <string name="timer_stopped">Timer stopped</string>
+    <string name="phone_not_connected">Phone not connected</string>
+</resources>

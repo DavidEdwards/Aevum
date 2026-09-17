@@ -2,7 +2,9 @@ package dae.aevum
 
 import android.app.Application
 import dae.aevum.domain.repositories.JiraRepository
+import dae.aevum.domain.repositories.WearActiveTimerSync
 import dae.aevum.timer.TimerForegroundService
+import dae.aevum.utils.ActiveTimerSnapshot
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +20,9 @@ class App : Application() {
     @Inject
     lateinit var jiraRepository: JiraRepository
 
+    @Inject
+    lateinit var wearActiveTimerSync: WearActiveTimerSync
+
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
@@ -32,14 +37,16 @@ class App : Application() {
                 .flowActiveIssue()
                 .map { active ->
                     active?.let {
-                        ActiveTimerInfo(
+                        ActiveTimerSnapshot(
                             issueId = it.issue.id.value,
                             issueTitle = it.issue.title,
                             startedAtEpochMs = it.worklog.from.toEpochMilli(),
+                            worklogId = it.worklog.workId,
                         )
                     }
                 }.distinctUntilChanged()
                 .collect { info ->
+                    wearActiveTimerSync.sync(info)
                     if (info == null) {
                         Timber.v("Active timer cleared; stopping foreground service")
                         TimerForegroundService.stop(this@App)
@@ -55,10 +62,4 @@ class App : Application() {
                 }
         }
     }
-
-    private data class ActiveTimerInfo(
-        val issueId: String,
-        val issueTitle: String,
-        val startedAtEpochMs: Long,
-    )
 }

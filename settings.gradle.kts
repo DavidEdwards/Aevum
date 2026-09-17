@@ -31,4 +31,5 @@ include(":common")
 include(":ui")
 include(":domain")
 include(":network")
+include(":wear")
 

@@ -15,12 +15,14 @@ import dae.aevum.domain.repositories.TokenStore
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.domain.repositories.UserRepositoryImpl
 import dae.aevum.domain.repositories.WidgetRefresher
+import dae.aevum.domain.repositories.WearActiveTimerSync
 import dae.aevum.ml.LlamaProofreader
 import dae.aevum.network.AuthInterceptor
 import dae.aevum.network.Jira
 import dae.aevum.network.JiraService
 import dae.aevum.security.SecureTokenStore
 import dae.aevum.utils.Urls
+import dae.aevum.wear.WearActiveTimerSyncImpl
 import dae.aevum.widget.WidgetRefresherImpl
 import dagger.Module
 import dagger.Provides
@@ -149,4 +151,10 @@ class AevumModule {
     fun provideWidgetRefresher(
         @ApplicationContext context: Context,
     ): WidgetRefresher = WidgetRefresherImpl(context)
+
+    @Provides
+    @Singleton
+    fun provideWearActiveTimerSync(
+        @ApplicationContext context: Context,
+    ): WearActiveTimerSync = WearActiveTimerSyncImpl(context)
 }

@@ -13,9 +13,10 @@ class AppPlugin : Plugin<Project> {
             withPlugin("com.android.application") {
                 target.baseSetup()
                 target.tasks.register("aevumUnitTest") {
-                    dependsOn("testPlayProprietaryDebugUnitTest")
+                    dependsOn("testDebugUnitTest")
                 }
             }
         }
     }
 }
+

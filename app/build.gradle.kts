@@ -120,6 +120,11 @@ dependencies {
     implementation(libs.glance.appwidget)
     // endregion
 
+    // region Wear OS Data Layer
+    implementation(libs.play.services.wearable)
+    implementation(libs.coroutines.play.services)
+    // endregion
+
     // region SplashScreen
     implementation(libs.splashscreen)
     // endregion
