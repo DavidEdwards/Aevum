@@ -38,21 +38,9 @@ fun StartStopLoggingButton(
     stopLogging: (Long) -> Unit = {},
 ) {
     val activeIssue by viewModel.activeIssue.collectAsState(initial = null)
+    val isTimingThisIssue = activeIssue?.issue?.id == issue
 
-    if (activeIssue == null) {
-        OutlinedButton(
-            modifier = modifier,
-            onClick = {
-                startLogging(issue)
-            },
-        ) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = stringResource(R.string.start_logging),
-            )
-            Text(text = stringResource(R.string.start_logging))
-        }
-    } else {
+    if (isTimingThisIssue) {
         OutlinedButton(
             modifier = modifier,
             onClick = {
@@ -68,6 +56,25 @@ fun StartStopLoggingButton(
                     ),
             )
             Text(text = stringResource(R.string.stop_logging_to, activeIssue!!.issue.id.value))
+        }
+    } else {
+        val label =
+            if (activeIssue == null) {
+                stringResource(R.string.start_logging)
+            } else {
+                stringResource(R.string.switch_logging_to, issue.value)
+            }
+        OutlinedButton(
+            modifier = modifier,
+            onClick = {
+                startLogging(issue)
+            },
+        ) {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = label,
+            )
+            Text(text = label)
         }
     }
 }

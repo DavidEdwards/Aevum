@@ -104,10 +104,11 @@ fun AppTheme(
                 window.statusBarColor = colors.background.toArgb()
                 @Suppress("DEPRECATION")
                 window.navigationBarColor = colors.background.toArgb()
-            } else {
-                // TODO: WTF?
             }
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            // API 35+: edge-to-edge is default; control icon contrast via insets controller.
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = !darkTheme
+            insetsController.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

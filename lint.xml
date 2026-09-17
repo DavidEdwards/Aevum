@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Scaffold/BottomNav still use Compose Material while content uses Material3. -->
+    <issue id="UsingMaterialAndMaterial3Libraries" severity="ignore" />
+    <!-- Adaptive icons already only ship for API 26+; folder merge is cosmetic. -->
+    <issue id="ObsoleteSdkInt" severity="ignore" />
+    <!-- Shared strings across modules; unused in a single module is expected. -->
+    <issue id="UnusedResources" severity="ignore" />
+</lint>

@@ -18,6 +18,7 @@ import androidx.core.app.ServiceCompat
 import dae.aevum.MainActivity
 import dae.aevum.common.R as CommonR
 import dae.aevum.domain.repositories.JiraRepository
+import dae.aevum.utils.Intents
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -42,6 +44,7 @@ class TimerForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var vibrationJob: Job? = null
     private var observeJob: Job? = null
+    private var currentWorklogId: Long? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -55,12 +58,28 @@ class TimerForegroundService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
+        when (intent?.action) {
+            Intents.ACTION_TIMER_STOP -> {
+                serviceScope.launch { handleStopAction() }
+                return START_STICKY
+            }
+            Intents.ACTION_TIMER_ADD_15 -> {
+                serviceScope.launch { adjustActiveTime(+FIFTEEN_MIN_MS) }
+                return START_STICKY
+            }
+            Intents.ACTION_TIMER_SUB_15 -> {
+                serviceScope.launch { adjustActiveTime(-FIFTEEN_MIN_MS) }
+                return START_STICKY
+            }
+        }
+
         ensureForeground(
             issueId = intent?.getStringExtra(EXTRA_ISSUE_ID).orEmpty(),
             issueTitle = intent?.getStringExtra(EXTRA_ISSUE_TITLE).orEmpty(),
             startedAtEpochMs =
                 intent?.getLongExtra(EXTRA_STARTED_AT, System.currentTimeMillis())
                     ?: System.currentTimeMillis(),
+            worklogId = intent?.getLongExtra(EXTRA_WORKLOG_ID, -1L)?.takeIf { it > 0 },
         )
 
         if (observeJob == null) {
@@ -71,6 +90,7 @@ class TimerForegroundService : Service() {
                         .map { active ->
                             active?.let {
                                 TimerState(
+                                    worklogId = it.worklog.workId,
                                     issueId = it.issue.id.value,
                                     issueTitle = it.issue.title,
                                     startedAt = it.worklog.from,
@@ -80,12 +100,15 @@ class TimerForegroundService : Service() {
                         .collect { state ->
                             if (state == null) {
                                 Timber.v("No active timer; stopping foreground service")
+                                currentWorklogId = null
                                 stopSelfSafely()
                             } else {
+                                currentWorklogId = state.worklogId
                                 ensureForeground(
                                     issueId = state.issueId,
                                     issueTitle = state.issueTitle,
                                     startedAtEpochMs = state.startedAt.toEpochMilli(),
+                                    worklogId = state.worklogId,
                                 )
                                 restartVibrationLoop(state.startedAt)
                             }
@@ -103,11 +126,33 @@ class TimerForegroundService : Service() {
         super.onDestroy()
     }
 
+    private suspend fun handleStopAction() {
+        val active = jiraRepository.flowActiveIssue().firstOrNull() ?: return
+        val openIntent =
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                putExtra(Intents.EXTRA_OPEN_STOP_WORKLOG_ID, active.worklog.workId)
+            }
+        startActivity(openIntent)
+    }
+
+    private suspend fun adjustActiveTime(deltaMs: Long) {
+        val active = jiraRepository.flowActiveIssue().firstOrNull() ?: return
+        val worklogId = active.worklog.workId
+        if (deltaMs > 0) {
+            jiraRepository.incrementWorklogTime(worklogId, deltaMs)
+        } else {
+            jiraRepository.decrementWorklogTime(worklogId, -deltaMs)
+        }
+    }
+
     private fun ensureForeground(
         issueId: String,
         issueTitle: String,
         startedAtEpochMs: Long,
+        worklogId: Long?,
     ) {
+        if (worklogId != null) currentWorklogId = worklogId
         val notification = buildNotification(issueId, issueTitle, startedAtEpochMs)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ServiceCompat.startForeground(
@@ -138,6 +183,19 @@ class TimerForegroundService : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
 
+        val stopIntent =
+            Intent(this, TimerForegroundService::class.java).apply {
+                action = Intents.ACTION_TIMER_STOP
+            }
+        val addIntent =
+            Intent(this, TimerForegroundService::class.java).apply {
+                action = Intents.ACTION_TIMER_ADD_15
+            }
+        val subIntent =
+            Intent(this, TimerForegroundService::class.java).apply {
+                action = Intents.ACTION_TIMER_SUB_15
+            }
+
         val title =
             if (issueId.isBlank()) {
                 getString(CommonR.string.timer_notification_title_generic)
@@ -161,6 +219,36 @@ class TimerForegroundService : Service() {
             .setUsesChronometer(true)
             .setWhen(startedAtEpochMs)
             .setContentIntent(contentPendingIntent)
+            .addAction(
+                0,
+                getString(CommonR.string.timer_action_sub_15),
+                PendingIntent.getService(
+                    this,
+                    1,
+                    subIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
+            .addAction(
+                0,
+                getString(CommonR.string.timer_action_add_15),
+                PendingIntent.getService(
+                    this,
+                    2,
+                    addIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
+            .addAction(
+                0,
+                getString(CommonR.string.timer_action_stop),
+                PendingIntent.getService(
+                    this,
+                    3,
+                    stopIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }
@@ -227,6 +315,7 @@ class TimerForegroundService : Service() {
     }
 
     private data class TimerState(
+        val worklogId: Long,
         val issueId: String,
         val issueTitle: String,
         val startedAt: Instant,
@@ -237,10 +326,12 @@ class TimerForegroundService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val VIBRATION_INTERVAL_MS = 30L * 60L * 1000L
         private const val VIBRATION_DURATION_MS = 120L
+        private const val FIFTEEN_MIN_MS = 15L * 60L * 1000L
 
         private const val EXTRA_ISSUE_ID = "issue_id"
         private const val EXTRA_ISSUE_TITLE = "issue_title"
         private const val EXTRA_STARTED_AT = "started_at"
+        private const val EXTRA_WORKLOG_ID = "worklog_id"
 
         fun start(
             context: Context,

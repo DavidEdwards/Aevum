@@ -9,6 +9,8 @@ import dae.aevum.database.entities.WorklogEntity
 import dae.aevum.database.entities.composites.WorklogIssue
 import dae.aevum.network.Jira
 import dae.aevum.utils.IssueId
+import dae.aevum.utils.WorklogTimeHelpers
+import dae.aevum.utils.WorklogUploadResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -25,8 +27,6 @@ import timber.log.Timber
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
 import javax.inject.Singleton
 
 interface JiraRepository {
@@ -75,7 +75,7 @@ interface JiraRepository {
 
     fun getWorklogIssuesInLastTwoWeeks(): Flow<List<WorklogIssue>>
 
-    suspend fun postPendingWorklogs(): List<WorklogEntity>
+    suspend fun postPendingWorklogs(): WorklogUploadResult
 
     suspend fun updateWorklog(
         worklogId: Long,
@@ -120,6 +120,9 @@ interface JiraRepository {
         projectKey: String,
         maxResults: Int = 1000,
     ): List<IssueEntity>
+
+    /** Remote Jira search when local DB has no matches for [term]. */
+    suspend fun searchIssuesRemote(term: String): List<IssueEntity>
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -210,7 +213,7 @@ class JiraRepositoryImpl(
 
             yield()
             if (entities.isNotEmpty()) {
-                database.worklogDao().addWorks(entities)
+                database.worklogDao().upsertRemoteWorks(entities)
             }
         } catch (e: Exception) {
             Timber.e(e)
@@ -237,7 +240,7 @@ class JiraRepositoryImpl(
                     ensureIssueExists(user.id, issueId)
                 }
 
-                database.worklogDao().addWorks(entities)
+                database.worklogDao().upsertRemoteWorks(entities)
             }
         } catch (e: Exception) {
             Timber.e(e)
@@ -279,7 +282,11 @@ class JiraRepositoryImpl(
         }
     }
 
-    override fun worklogsForIssue(issueId: IssueId): Flow<List<WorklogEntity>> = database.worklogDao().flowWorkByIssueId(issueId.value)
+    override fun worklogsForIssue(issueId: IssueId): Flow<List<WorklogEntity>> =
+        userRepository.flowActiveUser().flatMapLatest { user ->
+            if (user == null) return@flatMapLatest emptyFlow()
+            database.worklogDao().flowWorkByIssueId(issueId.value, user.id)
+        }
 
     override suspend fun startLogFor(issueId: IssueId) {
         val user =
@@ -287,9 +294,25 @@ class JiraRepositoryImpl(
                 ?: return
 
         val now = Instant.now()
+        val active = database.worklogDao().getActiveWorklogForUser(user.id)
+        if (active != null) {
+            if (active.issueId == issueId) {
+                // Already timing this issue
+                return
+            }
+            // Finalize previous timer as pending (no summary prompt on switch)
+            database.worklogDao().updateWork(
+                active.copy(
+                    active = false,
+                    to = now,
+                ),
+            )
+        }
+
         database.worklogDao().addWork(
             WorklogEntity(
                 workId = 0L,
+                jiraWorklogId = null,
                 issueId = issueId,
                 userId = user.id,
                 jiraUserAccountId = user.jiraUserAccountId,
@@ -399,13 +422,7 @@ class JiraRepositoryImpl(
         return userRepository.flowActiveUser().flatMapLatest { user ->
             user ?: return@flatMapLatest emptyFlow()
 
-            val dayStart = LocalDate.now().atStartOfDay().toInstant(ZoneOffset.UTC)
-            val dayEnd =
-                LocalDate
-                    .now()
-                    .atStartOfDay()
-                    .plusHours(24)
-                    .toInstant(ZoneOffset.UTC)
+            val (dayStart, dayEnd) = WorklogTimeHelpers.todayWindow()
 
             return@flatMapLatest database.worklogDao().flowWorklogsToday(
                 userId = user.id,
@@ -419,13 +436,7 @@ class JiraRepositoryImpl(
         return userRepository.flowActiveUser().flatMapLatest { user ->
             user ?: return@flatMapLatest emptyFlow()
 
-            val dayStart = LocalDate.now().atStartOfDay().toInstant(ZoneOffset.UTC)
-            val dayEnd =
-                LocalDate
-                    .now()
-                    .atStartOfDay()
-                    .plusHours(24)
-                    .toInstant(ZoneOffset.UTC)
+            val (dayStart, dayEnd) = WorklogTimeHelpers.todayWindow()
 
             return@flatMapLatest database.worklogDao().getWorklogIssuesTodayFromMe(
                 userId = user.id,
@@ -439,18 +450,7 @@ class JiraRepositoryImpl(
     override fun getWorklogIssuesInLastTwoWeeks(): Flow<List<WorklogIssue>> {
         return userRepository.flowActiveUser().flatMapLatest { user ->
             user ?: return@flatMapLatest emptyFlow()
-            val end =
-                LocalDate
-                    .now()
-                    .atStartOfDay()
-                    .plusHours(24)
-                    .toInstant(ZoneOffset.UTC)
-            val start =
-                LocalDate
-                    .now()
-                    .minusDays(13)
-                    .atStartOfDay()
-                    .toInstant(ZoneOffset.UTC)
+            val (start, end) = WorklogTimeHelpers.lastTwoWeeksWindow()
             return@flatMapLatest database.worklogDao().getWorklogIssuesInRangeFromMe(
                 userId = user.id,
                 rangeStart = start,
@@ -460,55 +460,65 @@ class JiraRepositoryImpl(
         }
     }
 
-    override suspend fun postPendingWorklogs(): List<WorklogEntity> =
+    override suspend fun postPendingWorklogs(): WorklogUploadResult =
         supervisorScope {
-            val worklogs =
-                getPendingWorklogs()
-                    .firstOrNull()
-                    ?.filter { !it.active }
-                    ?: emptyList()
+            try {
+                val worklogs =
+                    getPendingWorklogs()
+                        .firstOrNull()
+                        ?.filter { !it.active }
+                        ?: emptyList()
 
-            yield()
-            val updatedWorklogs =
-                worklogs
-                    .map { worklog ->
-                        async(Dispatchers.IO) {
-                            jira.updateWorklog(worklog)
-                        }
-                    }.awaitAll()
+                if (worklogs.isEmpty()) {
+                    return@supervisorScope WorklogUploadResult.Success(0)
+                }
 
-            database.worklogDao().updateWorklogs(updatedWorklogs)
+                yield()
+                val updatedWorklogs =
+                    worklogs
+                        .map { worklog ->
+                            async(Dispatchers.IO) {
+                                jira.updateWorklog(worklog)
+                            }
+                        }.awaitAll()
 
-            // Now we can remove non-pending and update from Jira
-            val noLongerPendingWorklogs = updatedWorklogs.filter { it.pending.not() }
-            noLongerPendingWorklogs.forEach {
-                database.worklogDao().deleteWork(it)
+                database.worklogDao().updateWorklogs(updatedWorklogs)
+
+                val succeeded = updatedWorklogs.filter { !it.pending }
+                val failed = updatedWorklogs.filter { it.pending }
+
+                succeeded.forEach {
+                    database.worklogDao().deleteWork(it)
+                }
+
+                val issuesWithNewUpdates = succeeded.map { it.issueId }.distinct()
+                issuesWithNewUpdates.forEach {
+                    refreshWorklogsFor(it)
+                }
+
+                when {
+                    failed.isEmpty() -> WorklogUploadResult.Success(succeeded.size)
+                    succeeded.isEmpty() ->
+                        WorklogUploadResult.Failed(
+                            failed.joinToString { it.issueId.value },
+                        )
+                    else ->
+                        WorklogUploadResult.PartialFailure(
+                            uploadedCount = succeeded.size,
+                            failedIssueKeys = failed.map { it.issueId.value }.distinct(),
+                        )
+                }
+            } catch (e: Exception) {
+                Timber.e(e)
+                WorklogUploadResult.Failed(e.message)
             }
-
-            val issuesWithNewUpdates = noLongerPendingWorklogs.map { it.issueId }.distinct()
-            issuesWithNewUpdates.forEach {
-                refreshWorklogsFor(it)
-            }
-
-            updatedWorklogs
         }
 
     override suspend fun refreshWorklogsForLastTwoWeeks() {
         try {
             val user = userRepository.getActiveUser() ?: return
 
-            val end =
-                LocalDate
-                    .now()
-                    .atStartOfDay()
-                    .plusHours(24)
-                    .toInstant(ZoneOffset.UTC)
-            val start =
-                LocalDate
-                    .now()
-                    .minusDays(13)
-                    .atStartOfDay()
-                    .toInstant(ZoneOffset.UTC)
+            val (start, end) = WorklogTimeHelpers.lastTwoWeeksWindow()
 
             val entities =
                 withContext(Dispatchers.IO) {
@@ -520,7 +530,16 @@ class JiraRepositoryImpl(
                 issueIds.forEach { issueId ->
                     ensureIssueExists(user.id, issueId)
                 }
-                database.worklogDao().addWorks(entities)
+                database.worklogDao().upsertRemoteWorks(entities)
+                val keepIds = entities.mapNotNull { it.jiraWorklogId }
+                if (keepIds.isNotEmpty()) {
+                    database.worklogDao().pruneSyncedMissingFromRange(
+                        userId = user.id,
+                        keepIds = keepIds,
+                        rangeStart = start,
+                        rangeEnd = end,
+                    )
+                }
             }
         } catch (e: Exception) {
             Timber.e(e)
@@ -669,6 +688,7 @@ class JiraRepositoryImpl(
             val secondEntity =
                 entity.copy(
                     workId = 0,
+                    jiraWorklogId = null,
                     issueId = newIssueId,
                     from = splitAt,
                     summary = "",
@@ -737,6 +757,29 @@ class JiraRepositoryImpl(
             limitedIssues
         } catch (e: Exception) {
             Timber.e(e, "Error getting latest issues for project $projectKey")
+            emptyList()
+        }
+    }
+
+    override suspend fun searchIssuesRemote(term: String): List<IssueEntity> {
+        val trimmed = term.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        return try {
+            val user = userRepository.getActiveUser() ?: return emptyList()
+            val escaped = trimmed.replace("\"", "\\\"")
+            val jql =
+                if (trimmed.matches(Regex("^[A-Za-z][A-Za-z0-9_]+-\\d+$"))) {
+                    "key = $trimmed"
+                } else {
+                    "text ~ \"$escaped\" OR summary ~ \"$escaped\" ORDER BY updated DESC"
+                }
+            val issues = jira.searchIssues(user.id, listOf(jql)).take(25)
+            if (issues.isNotEmpty()) {
+                database.issueDao().addIssuesSafely(issues)
+            }
+            issues
+        } catch (e: Exception) {
+            Timber.e(e, "Remote issue search failed for term=$trimmed")
             emptyList()
         }
     }

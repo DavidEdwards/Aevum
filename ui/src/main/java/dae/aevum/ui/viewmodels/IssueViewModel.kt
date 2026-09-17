@@ -98,6 +98,12 @@ class IssueViewModel
         private val _isLoadingProjectIssues = mutableStateOf(false)
         val isLoadingProjectIssues: State<Boolean> = _isLoadingProjectIssues
 
+        private val _isSearchingRemote = mutableStateOf(false)
+        val isSearchingRemote: State<Boolean> = _isSearchingRemote
+
+        private val _remoteSearchResults = mutableStateOf<List<dae.aevum.database.entities.IssueEntity>>(emptyList())
+        val remoteSearchResults: State<List<dae.aevum.database.entities.IssueEntity>> = _remoteSearchResults
+
         val filteredIssues =
             issues
                 .combine(snapshotFlow { searchTerm }) { issues, term ->
@@ -109,6 +115,22 @@ class IssueViewModel
 
         fun setViewedIssueId(id: IssueId?) {
             savedStateHandle[SAVED_VIEWED_ISSUE_ID] = id?.value
+        }
+
+        fun searchRemoteIfNeeded(localEmpty: Boolean) {
+            val term = searchTerm.trim()
+            if (!localEmpty || term.isBlank()) {
+                _remoteSearchResults.value = emptyList()
+                return
+            }
+            viewModelScope.launch {
+                _isSearchingRemote.value = true
+                try {
+                    _remoteSearchResults.value = repository.searchIssuesRemote(term)
+                } finally {
+                    _isSearchingRemote.value = false
+                }
+            }
         }
 
         fun refreshIssues() =

@@ -55,7 +55,7 @@ interface IssuesDao {
     ): Flow<IssueEntity>
 
     @Query(
-        "SELECT worklogs.*, issues.title AS issueTitle FROM issues, worklogs WHERE issues.id = worklogs.issueId AND worklogs.workId = :worklogId AND issues.userId = :userId",
+        "SELECT worklogs.*, issues.title AS issueTitle FROM issues, worklogs WHERE issues.id = worklogs.issueId AND issues.userId = worklogs.userId AND worklogs.workId = :worklogId AND issues.userId = :userId",
     )
     fun flowWorklogById(
         userId: Int,
@@ -65,7 +65,7 @@ interface IssuesDao {
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @RewriteQueriesToDropUnusedColumns
     @Transaction
-    @Query("SELECT * FROM issues, worklogs WHERE issues.id = worklogs.issueId AND worklogs.active = 1 AND issues.userId = :userId LIMIT 1")
+    @Query("SELECT * FROM issues, worklogs WHERE issues.id = worklogs.issueId AND worklogs.active = 1 AND issues.userId = :userId AND worklogs.userId = :userId LIMIT 1")
     fun flowActiveIssue(userId: Int): Flow<ActiveIssueEntity?>
 
     @Query("SELECT * FROM issues WHERE userId = :userId ORDER BY sort ASC")
@@ -91,6 +91,9 @@ interface IssuesDao {
 
     @Delete
     suspend fun deleteIssue(entity: IssueEntity)
+
+    @Query("DELETE FROM issues WHERE userId = :userId")
+    suspend fun deleteIssuesForUser(userId: Int): Int
 
     @Transaction
     suspend fun refreshWith(

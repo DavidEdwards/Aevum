@@ -13,6 +13,10 @@ hilt {
 android {
     namespace = "dae.aevum"
 
+    buildFeatures {
+        buildConfig = true
+    }
+
 //    androidResources {
 //        generateLocaleConfig = true
 //    }
@@ -119,6 +123,8 @@ dependencies {
     // region SplashScreen
     implementation(libs.splashscreen)
     // endregion
+
+    implementation(libs.security.crypto)
 
     testImplementation(libs.junit)
 

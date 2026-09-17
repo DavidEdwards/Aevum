@@ -37,8 +37,10 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import dae.aevum.common.R
 import dae.aevum.database.entities.IssueEntity
 import dae.aevum.ui.composables.reusable.HighlightColors
+import dae.aevum.ui.composables.reusable.TimesheetProgressBanner
 import dae.aevum.ui.models.IssueUiModel
 import dae.aevum.ui.viewmodels.IssueViewModel
+import dae.aevum.ui.viewmodels.WorklogViewModel
 import dae.aevum.utils.IssueId
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -90,6 +92,15 @@ fun IssueList(
             modifier
                 .padding(horizontal = 16.dp),
     ) {
+        val worklogViewModel: WorklogViewModel = hiltViewModel()
+        val progress by worklogViewModel.timesheetProgress.collectAsState(
+            initial = dae.aevum.utils.TimesheetProgress(0.0, 0.0),
+        )
+        TimesheetProgressBanner(
+            todayHours = progress.todayHours,
+            weekHours = progress.weekHours,
+            compact = true,
+        )
         PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
             tabs.forEachIndexed { index, tab ->
                 Tab(
@@ -173,29 +184,51 @@ private fun SearchIssuesContent(
                     entity.title.contains(term, ignoreCase = true)
             }
 
+        LaunchedEffect(viewModel.searchTerm, items.isEmpty()) {
+            viewModel.searchRemoteIfNeeded(items.isEmpty() && viewModel.searchTerm.isNotBlank())
+        }
+
+        val remoteResults by viewModel.remoteSearchResults
+        val isSearchingRemote by viewModel.isSearchingRemote
+        val displayItems =
+            if (items.isNotEmpty()) {
+                items
+            } else {
+                remoteResults
+            }
+
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .pullRefresh(refreshState),
         ) {
-            if (items.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.no_visible_issues),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            } else {
-                LazyColumn {
-                    itemsIndexed(
-                        items = items,
-                        key = { _, item -> item.id.value },
-                    ) { _, item ->
-                        IssueListItem(
-                            entity = item,
-                            highlight = viewModel.searchTerm.takeIf { it.isNotBlank() },
-                            onIssueSelected = onIssueSelected,
-                            onTogglePinIssue = onTogglePinIssue,
-                        )
+            when {
+                isSearchingRemote -> {
+                    Text(
+                        text = stringResource(R.string.searching_remote_issues),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+                displayItems.isEmpty() -> {
+                    Text(
+                        text = stringResource(R.string.no_visible_issues),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+                else -> {
+                    LazyColumn {
+                        itemsIndexed(
+                            items = displayItems,
+                            key = { _, item -> item.id.value },
+                        ) { _, item ->
+                            IssueListItem(
+                                entity = item,
+                                highlight = viewModel.searchTerm.takeIf { it.isNotBlank() },
+                                onIssueSelected = onIssueSelected,
+                                onTogglePinIssue = onTogglePinIssue,
+                            )
+                        }
                     }
                 }
             }

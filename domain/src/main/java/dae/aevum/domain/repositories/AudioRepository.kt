@@ -6,15 +6,12 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import timber.log.Timber
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Singleton
+import kotlin.coroutines.resume
 
 interface AudioRepository {
     suspend fun getAudioText(): String
@@ -23,14 +20,23 @@ interface AudioRepository {
 @Singleton
 class AudioRepositoryImpl(
     private val context: Context,
-    private val jiraRepository: JiraRepository,
+    @Suppress("UNUSED_PARAMETER") private val jiraRepository: JiraRepository,
 ) : AudioRepository {
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-
     override suspend fun getAudioText(): String {
         return suspendCancellableCoroutine { continuation ->
-            var result = ""
+            val completed = AtomicBoolean(false)
+            fun complete(value: String) {
+                if (completed.compareAndSet(false, true)) {
+                    continuation.resume(value)
+                }
+            }
+
             val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+            continuation.invokeOnCancellation {
+                speechRecognizer.cancel()
+                speechRecognizer.destroy()
+            }
+
             speechRecognizer.setRecognitionListener(
                 object : RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) {
@@ -51,31 +57,24 @@ class AudioRepositoryImpl(
 
                     override fun onEndOfSpeech() {
                         Timber.v("Speech: onEndOfSpeech")
-                        scope.launch {
-                            delay(1_000L)
-                            speechRecognizer.stopListening()
-                            continuation.resumeWith(Result.success(result))
-                        }
                     }
 
                     override fun onError(error: Int) {
                         Timber.v("Speech: onError: $error")
-                        // TODO: Necessary?
-                        // continuation.resumeWith(Result.failure(RuntimeException("Speech recognition reported an error of $error")))
+                        speechRecognizer.destroy()
+                        complete("")
                     }
 
                     override fun onResults(results: Bundle?) {
                         Timber.v("Speech: onResults: $results")
-
                         val data =
                             results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                                ?: return
+                                .orEmpty()
+                        val text = data.joinToString(" ")
                         Timber.v("Speech: onResults: data: $data")
-                        result = data.joinToString(" ")
-
-                        scope.launch {
-                            jiraRepository.stopLogging(result)
-                        }
+                        speechRecognizer.destroy()
+                        // Caller (CompletedWorklogDialog) stops the timer with this text.
+                        complete(text)
                     }
 
                     override fun onPartialResults(partialResults: Bundle?) {

@@ -10,6 +10,9 @@ import dae.aevum.domain.repositories.WidgetRefresher
 import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.models.WorklogUiModel
 import dae.aevum.utils.IssueId
+import dae.aevum.utils.TimesheetProgress
+import dae.aevum.utils.WorklogTimeHelpers
+import dae.aevum.utils.WorklogUploadResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,9 +30,9 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.map
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
-
-// removed unused imports
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -60,7 +63,6 @@ class WorklogViewModel
                     list.map { WorklogUiModel.fromEntity(entity = it) }
                 }
 
-        // Paged pending worklogs for large lists
         val pagedPendingWorklogs: Flow<PagingData<WorklogUiModel>> =
             jiraRepository
                 .pagedPendingWorklogs()
@@ -83,8 +85,33 @@ class WorklogViewModel
                     list.map { WorklogIssueUiModel.fromEntity(entity = it) }
                 }
 
+        val timesheetProgress: Flow<TimesheetProgress> =
+            worklogIssuesLastTwoWeeks.map { list ->
+                val now = Instant.now()
+                val zone = ZoneId.systemDefault()
+                val today = LocalDate.now(zone)
+                val (weekStart, weekEnd) = WorklogTimeHelpers.currentWeekWindow(today, zone)
+                val todayHours =
+                    list
+                        .filter { it.from.atZone(zone).toLocalDate() == today }
+                        .sumOf { WorklogTimeHelpers.hours(it.from, it.to, it.active, now) }
+                val weekHours =
+                    list
+                        .filter {
+                            val to = WorklogTimeHelpers.effectiveTo(it.from, it.to, it.active, now)
+                            WorklogTimeHelpers.overlaps(it.from, to, weekStart, weekEnd)
+                        }.sumOf { WorklogTimeHelpers.hours(it.from, it.to, it.active, now) }
+                TimesheetProgress(todayHours = todayHours, weekHours = weekHours)
+            }
+
         private val _isUpdatingWorklog = MutableStateFlow(false)
         val isUpdatingWorklog: StateFlow<Boolean> = _isUpdatingWorklog.asStateFlow()
+
+        private val _uploadState = MutableStateFlow<WorklogUploadResult>(WorklogUploadResult.Idle)
+        val uploadState: StateFlow<WorklogUploadResult> = _uploadState.asStateFlow()
+
+        private val _isRefreshingSummary = MutableStateFlow(false)
+        val isRefreshingSummary: StateFlow<Boolean> = _isRefreshingSummary.asStateFlow()
 
         fun setViewedWorklogId(id: Long?) {
             savedStateHandle[SAVED_VIEWED_WORKLOG_ID] = id
@@ -92,8 +119,15 @@ class WorklogViewModel
 
         fun postPendingWorklogs() {
             viewModelScope.launch {
-                jiraRepository.postPendingWorklogs()
+                _uploadState.value = WorklogUploadResult.Running
+                val result = jiraRepository.postPendingWorklogs()
+                _uploadState.value = result
+                widgetRefresher.refreshAll()
             }
+        }
+
+        fun clearUploadState() {
+            _uploadState.value = WorklogUploadResult.Idle
         }
 
         fun updateWorklog(
@@ -121,7 +155,6 @@ class WorklogViewModel
         ) {
             _isUpdatingWorklog.value = true
             try {
-                // Call directly; repository already does validation and proofreading
                 jiraRepository.updateWorklog(worklogId, from, to, summary)
                 widgetRefresher.refreshAll()
             } finally {
@@ -264,8 +297,13 @@ class WorklogViewModel
 
         fun refreshWorklogsLastTwoWeeks(): Job =
             viewModelScope.launch {
-                Timber.v("Refreshing worklogs for last two weeks from Jira…")
-                jiraRepository.refreshWorklogsForLastTwoWeeks()
+                _isRefreshingSummary.value = true
+                try {
+                    Timber.v("Refreshing worklogs for last two weeks from Jira…")
+                    jiraRepository.refreshWorklogsForLastTwoWeeks()
+                } finally {
+                    _isRefreshingSummary.value = false
+                }
             }
 
         companion object {

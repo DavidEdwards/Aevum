@@ -19,17 +19,84 @@ interface WorklogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addWork(entity: WorklogEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addWorks(entity: List<WorklogEntity>)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun addWorksIgnore(entity: List<WorklogEntity>)
 
     @Query("SELECT * FROM worklogs WHERE workId = :workId")
     suspend fun findWorkById(workId: Long): WorklogEntity?
 
-    @Query("SELECT * FROM worklogs WHERE issueId = :issueId ORDER BY `from` DESC LIMIT 500")
-    fun flowWorkByIssueId(issueId: String): Flow<List<WorklogEntity>>
+    @Query(
+        "SELECT * FROM worklogs WHERE userId = :userId AND jiraWorklogId = :jiraWorklogId LIMIT 1",
+    )
+    suspend fun findByJiraWorklogId(
+        userId: Int,
+        jiraWorklogId: Long,
+    ): WorklogEntity?
 
-    @Query("SELECT * FROM worklogs WHERE issueId = :issueId ORDER BY `from` DESC")
-    fun pagingWorkByIssueId(issueId: String): PagingSource<Int, WorklogEntity>
+    @Query("DELETE FROM worklogs WHERE userId = :userId")
+    suspend fun deleteWorklogsForUser(userId: Int): Int
+
+    @Query(
+        "SELECT jiraWorklogId FROM worklogs WHERE userId = :userId AND pending = 0 " +
+            "AND jiraWorklogId IS NOT NULL " +
+            "AND `from` < :rangeEnd AND `to` > :rangeStart",
+    )
+    suspend fun getSyncedJiraIdsInRange(
+        userId: Int,
+        rangeStart: Instant,
+        rangeEnd: Instant,
+    ): List<Long>
+
+    @Query(
+        "DELETE FROM worklogs WHERE userId = :userId AND pending = 0 " +
+            "AND jiraWorklogId IS NOT NULL " +
+            "AND jiraWorklogId NOT IN (:keepIds) " +
+            "AND `from` < :rangeEnd AND `to` > :rangeStart",
+    )
+    suspend fun pruneSyncedMissingFromRange(
+        userId: Int,
+        keepIds: List<Long>,
+        rangeStart: Instant,
+        rangeEnd: Instant,
+    ): Int
+
+    /**
+     * Upsert remote (non-pending) worklogs by jiraWorklogId without clobbering local pending rows.
+     */
+    @Transaction
+    suspend fun upsertRemoteWorks(entities: List<WorklogEntity>) {
+        entities.forEach { entity ->
+            val jiraId = entity.jiraWorklogId ?: return@forEach
+            val existing = findByJiraWorklogId(entity.userId, jiraId)
+            if (existing != null) {
+                if (existing.pending) {
+                    // Never overwrite a pending local row via remote id collision
+                    return@forEach
+                }
+                updateWork(
+                    entity.copy(
+                        workId = existing.workId,
+                        pending = false,
+                        active = false,
+                    ),
+                )
+            } else {
+                addWork(entity.copy(workId = 0L))
+            }
+        }
+    }
+
+    @Query(
+        "SELECT * FROM worklogs WHERE issueId = :issueId AND userId = :userId " +
+            "ORDER BY `from` DESC LIMIT 500",
+    )
+    fun flowWorkByIssueId(issueId: String, userId: Int): Flow<List<WorklogEntity>>
+
+    @Query(
+        "SELECT * FROM worklogs WHERE issueId = :issueId AND userId = :userId " +
+            "ORDER BY `from` DESC",
+    )
+    fun pagingWorkByIssueId(issueId: String, userId: Int): PagingSource<Int, WorklogEntity>
 
     @Query("SELECT * FROM worklogs WHERE active = 1 LIMIT 1")
     suspend fun getActiveWorklog(): WorklogEntity?
@@ -59,7 +126,9 @@ interface WorklogDao {
     fun pagingPendingWorklogs(userId: Int): PagingSource<Int, WorklogEntity>
 
     @Query(
-        "SELECT * FROM worklogs WHERE userId = :userId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC",
+        "SELECT * FROM worklogs WHERE userId = :userId " +
+            "AND `from` < :dayEnd AND `to` > :dayStart " +
+            "ORDER BY `from` DESC",
     )
     fun flowWorklogsToday(
         userId: Int,
@@ -68,7 +137,9 @@ interface WorklogDao {
     ): Flow<List<WorklogEntity>>
 
     @Query(
-        "SELECT * FROM worklogs WHERE userId = :userId AND jiraUserAccountId = :jiraUserAccountId AND ((`from` BETWEEN :dayStart AND :dayEnd) OR (`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY `from` DESC LIMIT 500",
+        "SELECT * FROM worklogs WHERE userId = :userId AND jiraUserAccountId = :jiraUserAccountId " +
+            "AND `from` < :dayEnd AND `to` > :dayStart " +
+            "ORDER BY `from` DESC LIMIT 500",
     )
     fun getWorklogsTodayFromMe(
         userId: Int,
@@ -79,14 +150,14 @@ interface WorklogDao {
 
     /**
      * Returns all worklogs authored by the current Jira user that overlap with the provided range.
-     * Overlap condition uses: from <= end AND to >= start
+     * Overlap condition uses: from < end AND to > start
      */
     @Query(
         "SELECT * FROM worklogs " +
             "WHERE userId = :userId " +
             "AND jiraUserAccountId = :jiraUserAccountId " +
-            "AND `from` <= :end " +
-            "AND `to` >= :start " +
+            "AND `from` < :end " +
+            "AND `to` > :start " +
             "ORDER BY `from` ASC",
     )
     fun getWorklogsFromMeBetween(
@@ -96,11 +167,22 @@ interface WorklogDao {
         jiraUserAccountId: String,
     ): Flow<List<WorklogEntity>>
 
-    @Query("SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues WHERE worklogs.issueId = issues.id")
-    fun getWorklogsAndIssues(): Flow<List<WorklogIssue>>
+    @Query(
+        "SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues " +
+            "WHERE worklogs.issueId = issues.id " +
+            "AND worklogs.userId = issues.userId " +
+            "AND worklogs.userId = :userId",
+    )
+    fun getWorklogsAndIssues(userId: Int): Flow<List<WorklogIssue>>
 
     @Query(
-        "SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues WHERE worklogs.issueId = issues.id AND worklogs.userId = :userId AND worklogs.jiraUserAccountId = :jiraUserAccountId AND ((worklogs.`from` BETWEEN :dayStart AND :dayEnd) OR (worklogs.`to` BETWEEN :dayStart AND :dayEnd)) ORDER BY worklogs.`from` DESC",
+        "SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues " +
+            "WHERE worklogs.issueId = issues.id " +
+            "AND worklogs.userId = issues.userId " +
+            "AND worklogs.userId = :userId " +
+            "AND worklogs.jiraUserAccountId = :jiraUserAccountId " +
+            "AND worklogs.`from` < :dayEnd AND worklogs.`to` > :dayStart " +
+            "ORDER BY worklogs.`from` DESC",
     )
     fun getWorklogIssuesTodayFromMe(
         userId: Int,
@@ -111,9 +193,11 @@ interface WorklogDao {
 
     @Query(
         "SELECT worklogs.*, issues.title AS issueTitle FROM worklogs, issues " +
-            "WHERE worklogs.issueId = issues.id AND worklogs.userId = :userId " +
+            "WHERE worklogs.issueId = issues.id " +
+            "AND worklogs.userId = issues.userId " +
+            "AND worklogs.userId = :userId " +
             "AND worklogs.jiraUserAccountId = :jiraUserAccountId " +
-            "AND ((worklogs.`from` BETWEEN :rangeStart AND :rangeEnd) OR (worklogs.`to` BETWEEN :rangeStart AND :rangeEnd)) " +
+            "AND worklogs.`from` < :rangeEnd AND worklogs.`to` > :rangeStart " +
             "ORDER BY worklogs.`from` DESC",
     )
     fun getWorklogIssuesInRangeFromMe(

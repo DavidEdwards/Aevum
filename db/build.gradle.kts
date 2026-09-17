@@ -34,4 +34,9 @@ dependencies {
     implementation(libs.room.ktx)
     implementation(libs.room.paging)
     ksp(libs.room.compiler)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.room.testing)
+    testImplementation(libs.androidX.test.core)
+    testImplementation(libs.robolectric)
 }

@@ -54,6 +54,16 @@
     <string name="split_worklog">Split worklog</string>
     <string name="summary_title">Summary</string>
     <string name="last_14_days">Last 14 days</string>
+    <string name="refresh">Refresh</string>
+    <string name="bar_chart">Bar chart</string>
+    <string name="today_progress">Today</string>
+    <string name="week_progress">This week</string>
+    <string name="hours_remaining">%1$s h left</string>
+    <string name="switch_logging_to">Switch to %1$s</string>
+    <string name="upload_worklogs_running">Uploading worklogs…</string>
+    <string name="upload_worklogs_success">Upload complete: %1$d</string>
+    <string name="upload_worklogs_partial">Uploaded with failures: %1$s</string>
+    <string name="upload_worklogs_failed">Upload failed</string>
     <string name="token_expired_error">Your Jira token has expired. Please renew it in Users.</string>
     <string name="user_actions">User actions</string>
     <string name="update_token">Update token</string>
@@ -69,4 +79,8 @@
     <string name="timer_notification_title">Timing %1$s</string>
     <string name="timer_notification_title_generic">Timer running</string>
     <string name="timer_notification_text">Work timer is active</string>
+    <string name="timer_action_stop">Stop</string>
+    <string name="timer_action_add_15">+15m</string>
+    <string name="timer_action_sub_15">-15m</string>
+    <string name="searching_remote_issues">Searching Jira…</string>
 </resources>

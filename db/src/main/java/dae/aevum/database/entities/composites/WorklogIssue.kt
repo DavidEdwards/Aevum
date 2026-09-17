@@ -11,6 +11,7 @@ import java.time.Instant
 data class WorklogIssue(
     @PrimaryKey(autoGenerate = true)
     val workId: Long,
+    val jiraWorklogId: Long? = null,
     val issueId: IssueId,
     val userId: Int,
     val jiraUserAccountId: String,

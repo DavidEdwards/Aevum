@@ -35,6 +35,8 @@ interface JiraService {
     fun listWorklogsFor(
         @Path("issueId") issueId: String,
         @Query("startedAfter") startedAfter: Long,
+        @Query("startAt") startAt: Int = 0,
+        @Query("maxResults") maxResults: Int = 100,
     ): Call<WorklogListRetro?>
 
     @POST("issue/{issueId}/worklog")

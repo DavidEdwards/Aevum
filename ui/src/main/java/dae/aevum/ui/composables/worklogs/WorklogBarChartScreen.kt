@@ -9,10 +9,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -20,20 +24,46 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dae.aevum.common.R
 import dae.aevum.ui.viewmodels.WorklogViewModel
-import java.time.Duration
+import dae.aevum.utils.WorklogTimeHelpers
+import kotlinx.coroutines.delay
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
 @Composable
 fun WorklogBarChartScreen(viewModel: WorklogViewModel = hiltViewModel()) {
     val worklogs by viewModel.worklogIssuesLastTwoWeeks.collectAsState(initial = emptyList())
-    val grouped = worklogs.groupBy { it.from.atZone(ZoneId.systemDefault()).toLocalDate() }
+    val hasActive = worklogs.any { it.active }
+    val nowState = remember { mutableStateOf(Instant.now()) }
+    LaunchedEffect(hasActive) {
+        if (hasActive) {
+            while (true) {
+                nowState.value = Instant.now()
+                delay(1_000L)
+            }
+        } else {
+            nowState.value = Instant.now()
+        }
+    }
+
+    val zone = ZoneId.systemDefault()
+    val displayWorklogs =
+        worklogs.map { e ->
+            if (e.active) {
+                e.copy(to = WorklogTimeHelpers.effectiveTo(e.from, e.to, true, nowState.value))
+            } else {
+                e
+            }
+        }
+    val grouped = displayWorklogs.groupBy { it.from.atZone(zone).toLocalDate() }
     val orderedDays = (0..13).map { LocalDate.now().minusDays(it.toLong()) }
     val values =
         orderedDays.map { day ->
             val entries = grouped[day].orEmpty()
-            val seconds = entries.sumOf { Duration.between(it.from, it.to).seconds }
-            seconds / 3600f
+            entries
+                .sumOf {
+                    WorklogTimeHelpers.hours(it.from, it.to, active = false, now = it.to)
+                }.toFloat()
         }
 
     val goodColor = MaterialTheme.colorScheme.primary
@@ -47,7 +77,7 @@ fun WorklogBarChartScreen(viewModel: WorklogViewModel = hiltViewModel()) {
     ) {
         Text(
             text = stringResource(R.string.last_14_days),
-            style = MaterialTheme.typography.titleMedium
+            style = MaterialTheme.typography.titleMedium,
         )
         Canvas(
             modifier =
@@ -61,23 +91,27 @@ fun WorklogBarChartScreen(viewModel: WorklogViewModel = hiltViewModel()) {
             val widthPerBar = size.width / (barCount * 1.5f)
             val gap = widthPerBar / 2f
             val maxHours = (values.maxOrNull() ?: 8f).coerceAtLeast(8f)
-            val target = 8f
+            val weekdayTargetLine = WorklogTimeHelpers.WEEKDAY_TARGET_HOURS.toFloat()
 
             values.forEachIndexed { index, hours ->
+                val day = orderedDays[index]
                 val barHeight = (hours / maxHours) * size.height * 0.8f
                 val x = gap + index * (widthPerBar + gap)
                 val y = size.height - barHeight
                 drawRect(
-                    color = if (hours >= target) goodColor else badColor,
+                    color =
+                        if (WorklogTimeHelpers.isDayOnTrack(hours, day)) {
+                            goodColor
+                        } else {
+                            badColor
+                        },
                     topLeft = Offset(x, y),
-                    size =
-                        androidx.compose.ui.geometry
-                            .Size(widthPerBar, barHeight),
+                    size = Size(widthPerBar, barHeight),
                 )
             }
 
-            // Draw target line
-            val targetY = size.height - (target / maxHours) * size.height * 0.8f
+            // Draw weekday 8h target line as visual reference
+            val targetY = size.height - (weekdayTargetLine / maxHours) * size.height * 0.8f
             drawLine(
                 color = lineColor,
                 start = Offset(0f, targetY),
@@ -91,6 +125,5 @@ fun WorklogBarChartScreen(viewModel: WorklogViewModel = hiltViewModel()) {
 @Preview
 @Composable
 private fun WorklogBarChartScreenPreview() {
-    // minimal preview with empty data just to render canvas
     WorklogBarChartScreen()
 }

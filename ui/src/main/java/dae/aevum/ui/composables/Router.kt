@@ -172,7 +172,11 @@ val bottomNav =
     )
 
 @Composable
-fun Router(onReady: () -> Unit = {}) {
+fun Router(
+    onReady: () -> Unit = {},
+    pendingStopWorklogId: Long? = null,
+    onStopDialogOpened: () -> Unit = {},
+) {
     val navController = rememberNavController()
 
     var currentScreen by remember {
@@ -187,6 +191,12 @@ fun Router(onReady: () -> Unit = {}) {
 
             currentScreen = screen
         }
+    }
+
+    LaunchedEffect(pendingStopWorklogId) {
+        val id = pendingStopWorklogId ?: return@LaunchedEffect
+        navController.navigate("worklog/new/$id")
+        onStopDialogOpened()
     }
 
     AppScaffold(navController = navController, currentScreen = currentScreen, onReady = onReady)
@@ -224,10 +234,15 @@ fun AppScaffold(
             Screen.Issues.route
         }
 
+    val snackbarHostState = remember { androidx.compose.material.SnackbarHostState() }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         backgroundColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
+        snackbarHost = {
+            androidx.compose.material.SnackbarHost(hostState = snackbarHostState)
+        },
         bottomBar = {
             BottomBar(
                 navController = navController,
@@ -241,7 +256,11 @@ fun AppScaffold(
             )
         },
         floatingActionButton = {
-            Fab(navController = navController, currentScreen = currentScreen)
+            Fab(
+                navController = navController,
+                currentScreen = currentScreen,
+                snackbarHostState = snackbarHostState,
+            )
         },
     ) { insets ->
         Timber.v(
@@ -411,25 +430,72 @@ private fun Fab(
     navController: NavHostController,
     currentScreen: Screen,
     worklogViewModel: WorklogViewModel = hiltViewModel(),
+    snackbarHostState: androidx.compose.material.SnackbarHostState,
 ) {
+    val uploadState by worklogViewModel.uploadState.collectAsState()
+    val successMessage =
+        (uploadState as? dae.aevum.utils.WorklogUploadResult.Success)?.let {
+            stringResource(R.string.upload_worklogs_success, it.uploadedCount)
+        }
+    val partialMessage =
+        (uploadState as? dae.aevum.utils.WorklogUploadResult.PartialFailure)?.let {
+            stringResource(R.string.upload_worklogs_partial, it.failedIssueKeys.joinToString())
+        }
+    val failedFallback = stringResource(R.string.upload_worklogs_failed)
+
+    LaunchedEffect(uploadState) {
+        when (val state = uploadState) {
+            is dae.aevum.utils.WorklogUploadResult.Success -> {
+                successMessage?.let { snackbarHostState.showSnackbar(it) }
+                worklogViewModel.clearUploadState()
+            }
+            is dae.aevum.utils.WorklogUploadResult.PartialFailure -> {
+                partialMessage?.let { snackbarHostState.showSnackbar(it) }
+                worklogViewModel.clearUploadState()
+            }
+            is dae.aevum.utils.WorklogUploadResult.Failed -> {
+                snackbarHostState.showSnackbar(state.message ?: failedFallback)
+                worklogViewModel.clearUploadState()
+            }
+            else -> Unit
+        }
+    }
+
     if (currentScreen is Screen.Worklogs) {
         val pendingWorklogs by worklogViewModel.pendingWorklogs.collectAsState(initial = emptyList())
         val nonActivePending = pendingWorklogs.filter { !it.active }
+        val isUploading = uploadState is dae.aevum.utils.WorklogUploadResult.Running
+        val uploadContentDescription =
+            if (isUploading) {
+                stringResource(R.string.upload_worklogs_running)
+            } else {
+                stringResource(R.string.upload_worklogs)
+            }
 
-        if (nonActivePending.isNotEmpty()) {
+        if (nonActivePending.isNotEmpty() || isUploading) {
             FloatingActionButton(
                 onClick = {
-                    Timber.v("Uploading pending worklogs to Jira")
-                    worklogViewModel.postPendingWorklogs()
+                    if (!isUploading) {
+                        Timber.v("Uploading pending worklogs to Jira")
+                        worklogViewModel.postPendingWorklogs()
+                    }
                 },
                 backgroundColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = stringResource(R.string.upload_worklogs),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                )
+                if (isUploading) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = uploadContentDescription,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                    )
+                }
             }
         }
     } else if (currentScreen is Screen.Users) {

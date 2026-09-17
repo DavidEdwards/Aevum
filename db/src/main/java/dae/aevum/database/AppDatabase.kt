@@ -17,7 +17,7 @@ import javax.inject.Singleton
         WorklogEntity::class,
         UserEntity::class,
     ],
-    version = 10,
+    version = 11,
 )
 @TypeConverters(Converters::class)
 @Singleton
