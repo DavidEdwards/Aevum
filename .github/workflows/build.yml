@@ -20,15 +20,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # gradle/gradle-daemon-jvm.properties requires Amazon Corretto 21 for the daemon.
-      # JDK 17 is also installed for the project's jvmToolchain(17) compile target.
-      - name: Set up JDKs
+      # Install 17 first, then 21 so JAVA_HOME ends up as Corretto 21
+      # (matches gradle/gradle-daemon-jvm.properties).
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: corretto
-          java-version: |
-            21
-            17
+          java-version: "17"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: "21"
           cache: gradle
 
       - name: Set up Android SDK
@@ -41,4 +45,8 @@ jobs:
         run: chmod +x gradlew
 
       - name: Compile debug Kotlin
-        run: ./gradlew compileDebugKotlin --stacktrace --no-daemon
+        run: |
+          # Daemon JVM criteria require Amazon Corretto 21; register both JDKs for toolchain detection.
+          export JAVA_HOME="${JAVA_HOME_21_X64}"
+          ./gradlew compileDebugKotlin --stacktrace --no-daemon \
+            -Dorg.gradle.java.installations.fromEnv=JAVA_HOME,JAVA_HOME_17_X64,JAVA_HOME_21_X64
