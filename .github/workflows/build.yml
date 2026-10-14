@@ -30,7 +30,8 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: tools platform-tools platforms;android-37
+          # `tools` is obsolete and fails on current cmdline-tools; AGP fetches build-tools.
+          packages: platform-tools platforms;android-37
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
