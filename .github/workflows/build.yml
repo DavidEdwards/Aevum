@@ -20,11 +20,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      # gradle/gradle-daemon-jvm.properties requires Amazon Corretto 21 for the daemon.
+      # JDK 17 is also installed for the project's jvmToolchain(17) compile target.
+      - name: Set up JDKs
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "17"
+          distribution: corretto
+          java-version: |
+            21
+            17
           cache: gradle
 
       - name: Set up Android SDK
