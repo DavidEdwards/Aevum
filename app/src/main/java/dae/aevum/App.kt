@@ -29,6 +29,7 @@ class App : Application() {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
         observeActiveTimer()
+        observeRecentIssues()
     }
 
     private fun observeActiveTimer() {
@@ -59,6 +60,17 @@ class App : Application() {
                             startedAtEpochMs = info.startedAtEpochMs,
                         )
                     }
+                }
+        }
+    }
+
+    private fun observeRecentIssues() {
+        applicationScope.launch {
+            jiraRepository
+                .flowRecentlyLoggedIssues()
+                .distinctUntilChanged()
+                .collect { issues ->
+                    wearActiveTimerSync.syncRecentIssues(issues)
                 }
         }
     }

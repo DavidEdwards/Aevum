@@ -5,9 +5,10 @@ import androidx.room.Room
 import dae.aevum.database.AppDatabase
 import dae.aevum.database.migrations.Migration_10_11
 import dae.aevum.database.migrations.Migration_9_10
+import dae.aevum.domain.preferences.ProofreaderProgress
+import dae.aevum.domain.preferences.ProofreaderSecretStore
 import dae.aevum.domain.repositories.AudioRepository
 import dae.aevum.domain.repositories.AudioRepositoryImpl
-import dae.aevum.domain.repositories.ChainedProofreader
 import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.JiraRepositoryImpl
 import dae.aevum.domain.repositories.Proofreader
@@ -16,10 +17,11 @@ import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.domain.repositories.UserRepositoryImpl
 import dae.aevum.domain.repositories.WearActiveTimerSync
 import dae.aevum.domain.repositories.WidgetRefresher
-import dae.aevum.ml.LlamaProofreader
+import dae.aevum.ml.ConfigurableProofreader
 import dae.aevum.network.AuthInterceptor
 import dae.aevum.network.Jira
 import dae.aevum.network.JiraService
+import dae.aevum.security.ProofreaderSecretStoreImpl
 import dae.aevum.security.SecureTokenStore
 import dae.aevum.utils.Urls
 import dae.aevum.wear.WearActiveTimerSyncImpl
@@ -70,6 +72,10 @@ class AevumModule {
         val builder =
             OkHttpClient
                 .Builder()
+                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .callTimeout(45, java.util.concurrent.TimeUnit.SECONDS)
                 .addInterceptor(authInterceptor)
         if (dae.aevum.BuildConfig.DEBUG) {
             builder.addInterceptor(
@@ -105,26 +111,19 @@ class AevumModule {
         userRepository: UserRepository,
         database: AppDatabase,
         proofreader: Proofreader,
-    ): JiraRepository = JiraRepositoryImpl(jira, userRepository, database, proofreader)
+        proofreaderProgress: ProofreaderProgress,
+    ): JiraRepository =
+        JiraRepositoryImpl(jira, userRepository, database, proofreader, proofreaderProgress)
 
     @Provides
     @Singleton
-    fun provideProofreader(
-//        @ApplicationContext context: Context,
-        llama: LlamaProofreader,
-    ): Proofreader =
-        ChainedProofreader(
-            listOf(
-//            // First pass on-device for privacy and speed
-//            MlKitProofreader(context),
-                // Second pass via your Llama server for extra polish
-                llama,
-            ),
-        )
+    fun provideProofreader(configurable: ConfigurableProofreader): Proofreader = configurable
 
     @Provides
     @Singleton
-    fun provideLlamaProofreader(): LlamaProofreader = LlamaProofreader()
+    fun provideProofreaderSecretStore(
+        @ApplicationContext context: Context,
+    ): ProofreaderSecretStore = ProofreaderSecretStoreImpl(context)
 
     @Provides
     @Singleton

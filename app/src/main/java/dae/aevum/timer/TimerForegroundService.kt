@@ -10,15 +10,18 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import dae.aevum.MainActivity
+import dae.aevum.domain.preferences.TimerReminderPreferences
+import dae.aevum.domain.preferences.TimerReminderSettings
 import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.WidgetRefresher
 import dae.aevum.utils.Intents
+import dae.aevum.utils.TimerReminderHelpers
+import dae.aevum.utils.TimerReminderVibration
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +29,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -45,8 +49,12 @@ class TimerForegroundService : Service() {
     @Inject
     lateinit var widgetRefresher: WidgetRefresher
 
+    @Inject
+    lateinit var timerReminderPreferences: TimerReminderPreferences
+
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var vibrationJob: Job? = null
+
     private var widgetRefreshJob: Job? = null
     private var observeJob: Job? = null
     private var currentWorklogId: Long? = null
@@ -92,36 +100,42 @@ class TimerForegroundService : Service() {
         if (observeJob == null) {
             observeJob =
                 serviceScope.launch {
-                    jiraRepository
-                        .flowActiveIssue()
-                        .map { active ->
-                            active?.let {
-                                TimerState(
-                                    worklogId = it.worklog.workId,
-                                    issueId = it.issue.id.value,
-                                    issueTitle = it.issue.title,
-                                    startedAt = it.worklog.from,
-                                )
-                            }
-                        }.distinctUntilChanged()
-                        .collect { state ->
-                            if (state == null) {
-                                Timber.v("No active timer; stopping foreground service")
-                                currentWorklogId = null
-                                stopWidgetRefreshLoop()
-                                stopSelfSafely()
-                            } else {
-                                currentWorklogId = state.worklogId
-                                ensureForeground(
-                                    issueId = state.issueId,
-                                    issueTitle = state.issueTitle,
-                                    startedAtEpochMs = state.startedAt.toEpochMilli(),
-                                    worklogId = state.worklogId,
-                                )
-                                restartVibrationLoop(state.startedAt)
-                                restartWidgetRefreshLoop()
-                            }
+                    val activeTimer =
+                        jiraRepository
+                            .flowActiveIssue()
+                            .map { active ->
+                                active?.let {
+                                    TimerState(
+                                        worklogId = it.worklog.workId,
+                                        issueId = it.issue.id.value,
+                                        issueTitle = it.issue.title,
+                                        startedAt = it.worklog.from,
+                                    )
+                                }
+                            }.distinctUntilChanged()
+                    combine(
+                        activeTimer,
+                        timerReminderPreferences.settings,
+                    ) { state, reminder ->
+                        state to reminder
+                    }.collect { (state, reminder) ->
+                        if (state == null) {
+                            Timber.v("No active timer; stopping foreground service")
+                            currentWorklogId = null
+                            stopWidgetRefreshLoop()
+                            stopSelfSafely()
+                        } else {
+                            currentWorklogId = state.worklogId
+                            ensureForeground(
+                                issueId = state.issueId,
+                                issueTitle = state.issueTitle,
+                                startedAtEpochMs = state.startedAt.toEpochMilli(),
+                                worklogId = state.worklogId,
+                            )
+                            restartVibrationLoop(state.startedAt, reminder)
+                            restartWidgetRefreshLoop()
                         }
+                    }
                 }
         }
 
@@ -261,8 +275,15 @@ class TimerForegroundService : Service() {
             .build()
     }
 
-    private fun restartVibrationLoop(startedAt: Instant) {
+    private fun restartVibrationLoop(
+        startedAt: Instant,
+        reminder: TimerReminderSettings,
+    ) {
         vibrationJob?.cancel()
+        if (!reminder.enabled) {
+            vibrationJob = null
+            return
+        }
         vibrationJob =
             serviceScope.launch {
                 while (isActive) {
@@ -271,11 +292,13 @@ class TimerForegroundService : Service() {
                             .between(startedAt, Instant.now())
                             .toMillis()
                             .coerceAtLeast(0L)
-                    val nextMilestoneMs =
-                        ((elapsedMs / VIBRATION_INTERVAL_MS) + 1) * VIBRATION_INTERVAL_MS
-                    val delayMs = (nextMilestoneMs - elapsedMs).coerceAtLeast(1L)
+                    val delayMs =
+                        TimerReminderHelpers.delayUntilNextMilestoneMs(
+                            elapsedMs = elapsedMs,
+                            intervalMs = reminder.intervalMs,
+                        )
                     delay(delayMs)
-                    vibrateShort()
+                    vibrateReminder(reminder)
                 }
             }
     }
@@ -300,7 +323,7 @@ class TimerForegroundService : Service() {
         widgetRefreshJob = null
     }
 
-    private fun vibrateShort() {
+    private fun vibrateReminder(reminder: TimerReminderSettings) {
         try {
             val vibrator =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -310,10 +333,13 @@ class TimerForegroundService : Service() {
                     @Suppress("DEPRECATION")
                     getSystemService(VIBRATOR_SERVICE) as Vibrator
                 }
+            val shortPulse =
+                TimerReminderSettings.clampDurationMs(reminder.vibrationDurationMs)
+            val timings = reminder.pattern.timings(shortPulse)
             vibrator.vibrate(
-                VibrationEffect.createOneShot(
-                    VIBRATION_DURATION_MS,
-                    VibrationEffect.DEFAULT_AMPLITUDE,
+                TimerReminderVibration.createEffect(
+                    timings = timings,
+                    amplitude = reminder.intensity.amplitude,
                 ),
             )
         } catch (e: Exception) {
@@ -353,8 +379,6 @@ class TimerForegroundService : Service() {
     companion object {
         private const val CHANNEL_ID = "active_timer"
         private const val NOTIFICATION_ID = 1001
-        private const val VIBRATION_INTERVAL_MS = 30L * 60L * 1000L
-        private const val VIBRATION_DURATION_MS = 320L
         private const val FIFTEEN_MIN_MS = 15L * 60L * 1000L
         private const val WIDGET_REFRESH_INTERVAL_MS = 60L * 1000L
 

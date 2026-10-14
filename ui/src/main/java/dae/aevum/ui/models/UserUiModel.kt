@@ -5,6 +5,7 @@ import dae.aevum.database.entities.UserEntity
 data class UserUiModel(
     val id: Int,
     val user: String,
+    val instanceUrl: String = "",
     val active: Boolean,
 ) {
     companion object {
@@ -12,6 +13,7 @@ data class UserUiModel(
             UserUiModel(
                 id = entity.id,
                 user = entity.user,
+                instanceUrl = entity.instanceUrl,
                 active = entity.active,
             )
     }

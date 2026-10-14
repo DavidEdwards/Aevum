@@ -49,16 +49,19 @@ class SampleUserUiModelProvider : PreviewParameterProvider<UserUiModel> {
             UserUiModel(
                 id = 1,
                 user = "test1@test.com",
+                instanceUrl = "https://example.atlassian.net",
                 active = false,
             ),
             UserUiModel(
                 id = 2,
                 user = "test2@test.com",
+                instanceUrl = "https://example.atlassian.net",
                 active = true,
             ),
             UserUiModel(
                 id = 3,
                 user = "test3@test.com",
+                instanceUrl = "https://jira.example.com",
                 active = false,
             ),
         )

@@ -6,9 +6,9 @@ package dae.aevum.ui.composables.worklogs
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -31,7 +31,6 @@ import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.MoreTime
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +53,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dae.aevum.common.R
 import dae.aevum.ui.composables.reusable.CircleButton
+import dae.aevum.ui.composables.reusable.ProofreaderProgressPanel
 import dae.aevum.ui.models.WorklogUiModel
 import dae.aevum.ui.preview.SampleWorklogUiModelProvider
 import dae.aevum.ui.viewmodels.WorklogViewModel
@@ -346,39 +346,23 @@ fun TimeLabel(
     from: Instant,
     to: Instant,
 ) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth(),
-    ) {
-        Column {
-            Row {
-                Text(
-                    text = Formatters.universalDateFormatter.format(from),
-                    maxLines = 1,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "•",
-                    maxLines = 1,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = Formatters.universalTimeFormatter.format(from),
-                    maxLines = 1,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "•",
-                    maxLines = 1,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = Duration.between(from, to).human(),
-                    maxLines = 1,
-                )
-            }
-        }
+    val start = Formatters.universalTimeFormatter.format(from)
+    val end = Formatters.universalTimeFormatter.format(to)
+    val date = Formatters.universalDateFormatter.format(from)
+    val duration = Duration.between(from, to).human()
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "$date  $start — $end",
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = duration,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+        )
     }
 }
 
@@ -398,22 +382,20 @@ fun WorklogDetails(
         mutableStateOf(model.comment)
     }
     val isUpdating by viewModel.isUpdatingWorklog.collectAsStateWithLifecycle()
+    val proofreaderLogLines by viewModel.proofreaderLogLines.collectAsStateWithLifecycle()
 
     androidx.compose.animation.AnimatedContent(
         targetState = isUpdating,
         label = "worklogDetailsUpdating",
     ) { loading ->
         if (loading) {
-            Box(
+            ProofreaderProgressPanel(
+                lines = proofreaderLogLines,
                 modifier =
                     modifier
                         .fillMaxWidth()
-                        .fillMaxHeight()
-                        .padding(16.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
-            }
+                        .fillMaxHeight(),
+            )
         } else {
             Column(
                 modifier =

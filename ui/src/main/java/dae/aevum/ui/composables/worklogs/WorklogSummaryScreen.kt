@@ -1,25 +1,21 @@
 package dae.aevum.ui.composables.worklogs
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,15 +27,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dae.aevum.common.R
 import dae.aevum.ui.composables.reusable.TimesheetProgressBanner
-import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.viewmodels.WorklogViewModel
-import dae.aevum.utils.IssueId
 import dae.aevum.utils.TimesheetProgress
 import dae.aevum.utils.WorklogTimeHelpers
 import kotlinx.coroutines.delay
@@ -47,7 +43,6 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Locale
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -58,24 +53,26 @@ fun WorklogSummaryScreen(
     onBannerClick: (() -> Unit)? = null,
     weekdayTargetHours: Double = WorklogTimeHelpers.WEEKDAY_TARGET_HOURS,
     weekTargetHours: Double = WorklogTimeHelpers.WEEK_TARGET_HOURS,
+    workingDays: Set<java.time.DayOfWeek> = WorklogTimeHelpers.DEFAULT_WORKING_DAYS,
 ) {
-    val worklogs by viewModel.worklogIssuesLastTwoWeeks.collectAsState(initial = emptyList())
+    val worklogs by viewModel.worklogIssuesForSummary.collectAsState(initial = emptyList())
     val progress by viewModel.timesheetProgress.collectAsState(initial = TimesheetProgress(0.0, 0.0))
     val isRefreshing by viewModel.isRefreshingSummary.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMoreSummary.collectAsState()
+    val weekCount by viewModel.summaryWeekCount.collectAsState()
     val refreshError by viewModel.summaryRefreshError.collectAsState()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val refreshFailedMessage = stringResource(R.string.refresh_failed)
+    val refreshErrorMessage = refreshError?.let { stringResource(it) }
 
     LaunchedEffect(Unit) {
         viewModel.refreshWorklogsLastTwoWeeks()
     }
 
-    LaunchedEffect(refreshError) {
-        if (refreshError != null) {
-            snackbarHostState.showSnackbar(refreshFailedMessage)
-            viewModel.clearSummaryRefreshError()
-        }
+    LaunchedEffect(refreshErrorMessage) {
+        val message = refreshErrorMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.clearSummaryRefreshError()
     }
 
     val hasActive = worklogs.any { it.active }
@@ -92,11 +89,24 @@ fun WorklogSummaryScreen(
     }
 
     val zone = ZoneId.systemDefault()
-    val displayWorklogs =
-        worklogs.map { e ->
-            if (e.active) e.copy(to = WorklogTimeHelpers.effectiveTo(e.from, e.to, true, nowState.value)) else e
+    val hoursByDay =
+        remember(worklogs, nowState.value) {
+            val displayWorklogs =
+                worklogs.map { e ->
+                    if (e.active) {
+                        e.copy(to = WorklogTimeHelpers.effectiveTo(e.from, e.to, true, nowState.value))
+                    } else {
+                        e
+                    }
+                }
+            displayWorklogs
+                .groupBy { it.from.atZone(zone).toLocalDate() }
+                .mapValues { (_, entries) ->
+                    entries.sumOf {
+                        WorklogTimeHelpers.hours(it.from, it.to, active = false, now = it.to)
+                    }
+                }
         }
-    val grouped = displayWorklogs.groupBy { it.from.atZone(zone).toLocalDate() }
 
     val pullRefreshState =
         rememberPullRefreshState(
@@ -113,15 +123,20 @@ fun WorklogSummaryScreen(
                 .pullRefresh(pullRefreshState),
     ) {
         WorklogSummaryContent(
-            grouped = grouped,
+            hoursByDay = hoursByDay,
+            weekCount = weekCount,
+            isLoadingMore = isLoadingMore,
+            canLoadMore = weekCount < WorklogViewModel.MAX_SUMMARY_WEEKS,
             progress = progress,
             isRefreshing = isRefreshing,
             onRefresh = { viewModel.refreshWorklogsLastTwoWeeks() },
+            onLoadMore = { viewModel.loadMoreSummaryHistory() },
             onOpenBarChart = onOpenBarChart,
             onOpenDayDetailsForDay = onOpenDayDetailsForDay,
             onBannerClick = onBannerClick,
             weekdayTargetHours = weekdayTargetHours,
             weekTargetHours = weekTargetHours,
+            workingDays = workingDays,
         )
         PullRefreshIndicator(
             refreshing = isRefreshing,
@@ -137,21 +152,21 @@ fun WorklogSummaryScreen(
 
 @Composable
 private fun WorklogSummaryContent(
-    grouped: Map<LocalDate, List<WorklogIssueUiModel>>,
+    hoursByDay: Map<LocalDate, Double>,
+    weekCount: Int,
+    isLoadingMore: Boolean,
+    canLoadMore: Boolean,
     progress: TimesheetProgress,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    onLoadMore: () -> Unit,
     onOpenBarChart: () -> Unit,
     onOpenDayDetailsForDay: (LocalDate) -> Unit,
     onBannerClick: (() -> Unit)? = null,
     weekdayTargetHours: Double = WorklogTimeHelpers.WEEKDAY_TARGET_HOURS,
     weekTargetHours: Double = WorklogTimeHelpers.WEEK_TARGET_HOURS,
+    workingDays: Set<java.time.DayOfWeek> = WorklogTimeHelpers.DEFAULT_WORKING_DAYS,
 ) {
-    val orderedDays =
-        (0..13)
-            .map { LocalDate.now().minusDays(it.toLong()) }
-            .toList()
-
     Column(
         modifier =
             Modifier
@@ -163,9 +178,12 @@ private fun WorklogSummaryContent(
             weekHours = progress.weekHours,
             weekdayTargetHours = weekdayTargetHours,
             weekTargetHours = weekTargetHours,
+            workingDays = workingDays,
             onClick = onBannerClick,
         )
         Spacer(modifier = Modifier.height(8.dp))
+        /*
+        Temporarily removed to test how the system looks without the control bar
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -177,92 +195,87 @@ private fun WorklogSummaryContent(
                 Text(text = stringResource(R.string.bar_chart))
             }
         }
+         */
+        Spacer(modifier = Modifier.height(4.dp))
+        SummaryHoursLegend()
         Spacer(modifier = Modifier.height(8.dp))
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 96.dp),
-        ) {
-            items(orderedDays) { day ->
-                val entries = grouped[day].orEmpty()
-                val hours =
-                    entries.sumOf {
-                        WorklogTimeHelpers.hours(it.from, it.to, active = false, now = it.to)
-                    }
-                val target = WorklogTimeHelpers.dayTargetHours(day, weekdayTargetHours)
-                val meets = WorklogTimeHelpers.meetsDayTarget(hours, day, weekdayTargetHours)
+        WorklogSummaryWeekCalendar(
+            hoursByDay = hoursByDay,
+            weekCount = weekCount,
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore,
+            onLoadMore = onLoadMore,
+            onOpenDayDetailsForDay = onOpenDayDetailsForDay,
+            weekdayTargetHours = weekdayTargetHours,
+            workingDays = workingDays,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
 
-                Card(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                ) {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { onOpenDayDetailsForDay(day) }
-                                .background(
-                                    if (meets) {
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    } else {
-                                        MaterialTheme.colorScheme.errorContainer
-                                    },
-                                )
-                                .padding(12.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                text = day.toString(),
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            Text(text = String.format(Locale.US, "%.1f / %.1f h", hours, target))
-                        }
-                    }
-                }
-            }
-        }
+@Composable
+private fun SummaryHoursLegend() {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LegendSwatch(
+            color = MaterialTheme.colorScheme.errorContainer,
+            label = stringResource(R.string.summary_legend_under),
+        )
+        LegendSwatch(
+            color = MaterialTheme.colorScheme.primaryContainer,
+            label = stringResource(R.string.summary_legend_met),
+        )
+        LegendSwatch(
+            color = MaterialTheme.colorScheme.tertiaryContainer,
+            label = stringResource(R.string.summary_legend_over),
+        )
+    }
+}
+
+@Composable
+private fun LegendSwatch(
+    color: Color,
+    label: String,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(10.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(color),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
 @Preview
 @Composable
 private fun WorklogSummaryScreenPreview() {
-    val now = Instant.now()
-    val sample =
-        listOf(
-            WorklogIssueUiModel(
-                workId = 1,
-                issueId = IssueId("AAPP-1"),
-                author = "You",
-                from = now.minusSeconds(3 * 3600),
-                to = now.minusSeconds(2 * 3600),
-                comment = "Setup project",
-                pending = false,
-                active = false,
-                issueTitle = "AAPP-1",
-            ),
-            WorklogIssueUiModel(
-                workId = 2,
-                issueId = IssueId("AAPP-2"),
-                author = "You",
-                from = now.minusSeconds(6 * 3600),
-                to = now.minusSeconds(4 * 3600),
-                comment = "Implement feature",
-                pending = false,
-                active = false,
-                issueTitle = "AAPP-2",
-            ),
-        )
-    val grouped = mapOf(LocalDate.now() to sample)
+    val today = LocalDate.now()
     WorklogSummaryContent(
-        grouped = grouped,
+        hoursByDay =
+            mapOf(
+                today to 5.0,
+                today.minusDays(1) to 3.0,
+                today.minusDays(2) to 10.0,
+            ),
+        weekCount = 4,
+        isLoadingMore = false,
+        canLoadMore = true,
         progress = TimesheetProgress(5.0, 22.0),
         isRefreshing = false,
         onRefresh = {},
+        onLoadMore = {},
         onOpenBarChart = {},
         onOpenDayDetailsForDay = {},
     )

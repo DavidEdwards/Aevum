@@ -84,6 +84,46 @@ class Jira(
         entityList
     }
 
+    /**
+     * Uses Jira's issue picker (same API as the in-product issue chooser).
+     * Matches issue keys by number suffix (e.g. "5712" → PROJ-5712) better than text JQL.
+     */
+    suspend fun pickIssues(
+        userId: Int,
+        query: String,
+    ): List<IssueEntity> =
+        withContext(Dispatchers.IO) {
+            try {
+                val response =
+                    jiraService
+                        .pickIssues(
+                            query = query,
+                            // Broad bound so "Current Search" can match keys outside history.
+                            currentJql = "updated >= -365d ORDER BY updated DESC",
+                        ).execute()
+                if (!response.isSuccessful) {
+                    Timber.e("Issue picker failed: ${response.message()}")
+                    return@withContext emptyList()
+                }
+                val sections = response.body()?.sections.orEmpty()
+                sections
+                    .flatMap { it.issues }
+                    .distinctBy { it.key }
+                    .mapIndexed { index, issue ->
+                        IssueEntity(
+                            id = IssueId(issue.key),
+                            userId = userId,
+                            title = issue.summaryText ?: issue.summary.orEmpty(),
+                            pinned = false,
+                            sort = index,
+                        )
+                    }
+            } catch (e: Exception) {
+                Timber.e(e, "Issue picker exception for query=$query")
+                emptyList()
+            }
+        }
+
     suspend fun loadIssue(
         userId: Int,
         issueKey: String,
@@ -136,8 +176,8 @@ class Jira(
                 .map { it.toEntity(issueId, user) }
         } catch (e: Exception) {
             Timber.e(e)
+            throw e
         }
-        return emptyList()
     }
 
     private suspend fun listAllWorklogsFor(
@@ -226,14 +266,16 @@ class Jira(
                     return allWorklogs
                 } else {
                     Timber.e("No body for issues")
+                    return emptyList()
                 }
             } else {
                 Timber.e(issues.message())
+                error("Jira search failed: ${issues.code()} ${issues.message()}")
             }
         } catch (e: Exception) {
             Timber.e(e)
+            throw e
         }
-        return emptyList()
     }
 
     fun updateWorklog(worklog: WorklogEntity): WorklogEntity {
@@ -322,8 +364,8 @@ class Jira(
             return allWorklogs
         } catch (e: Exception) {
             Timber.e(e)
+            throw e
         }
-        return emptyList()
     }
 
     private suspend fun searchAllIssueKeys(jql: String): List<String> {

@@ -12,22 +12,22 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import dae.aevum.common.R
+import dae.aevum.ui.composables.reusable.ProofreaderProgressPanel
 import dae.aevum.ui.viewmodels.WorklogViewModel
 import kotlinx.coroutines.launch
 
@@ -40,7 +40,8 @@ fun CompletedWorklogDialog(
     worklogId: Long,
 ) {
     val micPermissionState = rememberPermissionState(RECORD_AUDIO)
-    val isStoppingWorklog by viewModel.isStoppingWorklog.collectAsState(initial = false)
+    val isStoppingWorklog by viewModel.isStoppingWorklog.collectAsStateWithLifecycle()
+    val proofreaderLogLines by viewModel.proofreaderLogLines.collectAsStateWithLifecycle()
 
     AlertDialog(
         modifier = modifier,
@@ -56,7 +57,7 @@ fun CompletedWorklogDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 if (isStoppingWorklog) {
-                    CircularProgressIndicator()
+                    ProofreaderProgressPanel(lines = proofreaderLogLines)
                 }
             }
         },

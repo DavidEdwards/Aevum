@@ -6,11 +6,18 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dae.aevum.domain.preferences.ProofreaderConfig
+import dae.aevum.domain.preferences.ProofreaderPreferences
+import dae.aevum.domain.preferences.ProofreaderProvider
+import dae.aevum.domain.preferences.TimerReminderPreferences
+import dae.aevum.domain.preferences.TimerReminderSettings
 import dae.aevum.domain.preferences.TimesheetPreferences
 import dae.aevum.domain.preferences.TimesheetTargets
+import dae.aevum.domain.preferences.VibrationIntensity
 import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.ui.models.UserUiModel
+import dae.aevum.utils.VibrationPattern
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +25,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.time.DayOfWeek
 import javax.inject.Inject
 
 sealed class ActiveUserState {
@@ -36,6 +44,8 @@ class UserViewModel
         private val userRepository: UserRepository,
         private val jiraRepository: JiraRepository,
         private val timesheetPreferences: TimesheetPreferences,
+        private val proofreaderPreferences: ProofreaderPreferences,
+        private val timerReminderPreferences: TimerReminderPreferences,
     ) : ViewModel() {
         var instanceUrl: String = savedStateHandle[SAVED_INSTANCE_URL] ?: ""
             set(value) {
@@ -197,15 +207,112 @@ class UserViewModel
                 TimesheetTargets(),
             )
 
+        val proofreaderConfig: StateFlow<ProofreaderConfig> =
+            proofreaderPreferences.config.stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                ProofreaderConfig(),
+            )
+
+        val timerReminderSettings: StateFlow<TimerReminderSettings> =
+            timerReminderPreferences.settings.stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                TimerReminderSettings(),
+            )
+
         fun setWeekdayTargetHours(hours: Double) {
             viewModelScope.launch {
                 timesheetPreferences.setWeekdayTargetHours(hours)
             }
         }
 
-        fun setWeekTargetHours(hours: Double) {
+        fun toggleWorkingDay(day: DayOfWeek) {
             viewModelScope.launch {
-                timesheetPreferences.setWeekTargetHours(hours)
+                timesheetPreferences.toggleWorkingDay(day)
+            }
+        }
+
+        fun setProofreaderProvider(provider: ProofreaderProvider) {
+            viewModelScope.launch {
+                val previous = proofreaderPreferences.current()
+                proofreaderPreferences.setProvider(provider)
+                // Apply sensible defaults when switching provider families.
+                when (provider) {
+                    ProofreaderProvider.OPENAI_COMPATIBLE -> {
+                        if (previous.provider != ProofreaderProvider.OPENAI_COMPATIBLE) {
+                            proofreaderPreferences.setEndpointUrl(ProofreaderConfig.DEFAULT_OPENAI_URL)
+                            proofreaderPreferences.setModel(ProofreaderConfig.DEFAULT_OPENAI_MODEL)
+                        }
+                    }
+
+                    ProofreaderProvider.OLLAMA -> {
+                        if (previous.provider != ProofreaderProvider.OLLAMA) {
+                            proofreaderPreferences.setEndpointUrl(ProofreaderConfig.DEFAULT_OLLAMA_URL)
+                            proofreaderPreferences.setModel(ProofreaderConfig.DEFAULT_OLLAMA_MODEL)
+                        }
+                    }
+
+                    ProofreaderProvider.OFF,
+                    ProofreaderProvider.KOOG_ON_DEVICE,
+                    -> {
+                        // No URL/model defaults needed.
+                    }
+                }
+            }
+        }
+
+        fun setProofreaderEndpointUrl(url: String) {
+            viewModelScope.launch {
+                proofreaderPreferences.setEndpointUrl(url)
+            }
+        }
+
+        fun setProofreaderModel(model: String) {
+            viewModelScope.launch {
+                proofreaderPreferences.setModel(model)
+            }
+        }
+
+        fun setProofreaderApiKey(apiKey: String) {
+            viewModelScope.launch {
+                proofreaderPreferences.setApiKey(apiKey)
+            }
+        }
+
+        fun setProofreaderConnectionTimeoutSeconds(seconds: Int) {
+            viewModelScope.launch {
+                proofreaderPreferences.setConnectionTimeoutSeconds(seconds)
+            }
+        }
+
+        fun setTimerReminderEnabled(enabled: Boolean) {
+            viewModelScope.launch {
+                timerReminderPreferences.setEnabled(enabled)
+            }
+        }
+
+        fun setTimerReminderIntervalMinutes(minutes: Int) {
+            viewModelScope.launch {
+                timerReminderPreferences.setIntervalMinutes(minutes)
+            }
+        }
+
+        fun setTimerReminderDurationMs(durationMs: Long) {
+            viewModelScope.launch {
+                timerReminderPreferences.setVibrationDurationMs(durationMs)
+            }
+        }
+
+        fun setTimerReminderIntensity(intensity: VibrationIntensity) {
+            viewModelScope.launch {
+                timerReminderPreferences.setIntensity(intensity)
+            }
+        }
+
+        fun setTimerReminderPattern(pattern: VibrationPattern) {
+            viewModelScope.launch {
+                timerReminderPreferences.setPattern(pattern)
             }
         }
 

@@ -52,8 +52,8 @@ class StartSuggestedIssueAction : ActionCallback {
                     Intent(context, MainActivity::class.java).apply {
                         flags =
                             Intent.FLAG_ACTIVITY_NEW_TASK or
-                                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                                Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP
                         putExtra(Intents.EXTRA_OPEN_WORKLOG_EDITOR_ID, closedId)
                     }
                 context.startActivity(editorIntent)
@@ -110,7 +110,11 @@ private suspend fun adjustActiveTime(
             } else {
                 repo.decrementWorklogTime(active.workId, -deltaMs)
             }
-            db.worklogDao().findWorkById(active.workId)?.from?.toEpochMilli()
+            db
+                .worklogDao()
+                .findWorkById(active.workId)
+                ?.from
+                ?.toEpochMilli()
         }
 
     if (newStartedAt != null) {

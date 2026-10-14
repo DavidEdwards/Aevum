@@ -42,6 +42,7 @@ object WidgetGlanceState {
                 prefs.remove(SUGGESTION_ID)
                 prefs.remove(SUGGESTION_TITLE)
             }
+
             is WidgetUiState.Idle -> {
                 prefs[ACTIVE] = false
                 prefs.remove(WORKLOG_ID)

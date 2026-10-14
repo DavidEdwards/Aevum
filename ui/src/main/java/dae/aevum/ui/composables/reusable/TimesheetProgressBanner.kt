@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dae.aevum.common.R
 import dae.aevum.utils.WorklogTimeHelpers
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.Locale
 
@@ -31,9 +32,11 @@ fun TimesheetProgressBanner(
     compact: Boolean = false,
     weekdayTargetHours: Double = WorklogTimeHelpers.WEEKDAY_TARGET_HOURS,
     weekTargetHours: Double = WorklogTimeHelpers.WEEK_TARGET_HOURS,
+    workingDays: Set<DayOfWeek> = WorklogTimeHelpers.DEFAULT_WORKING_DAYS,
     onClick: (() -> Unit)? = null,
 ) {
-    val todayTarget = WorklogTimeHelpers.dayTargetHours(LocalDate.now(), weekdayTargetHours)
+    val todayTarget =
+        WorklogTimeHelpers.dayTargetHours(LocalDate.now(), weekdayTargetHours, workingDays)
     val weekTarget = weekTargetHours
     val todayProgress = WorklogTimeHelpers.progressFraction(todayHours, todayTarget)
     val weekProgress = WorklogTimeHelpers.progressFraction(weekHours, weekTarget)
@@ -71,8 +74,7 @@ fun TimesheetProgressBanner(
                     } else {
                         Modifier
                     },
-                )
-                .padding(vertical = if (compact) 4.dp else 8.dp),
+                ).padding(vertical = if (compact) 4.dp else 8.dp),
     ) {
         ProgressRow(
             label = stringResource(R.string.today_progress),

@@ -52,22 +52,18 @@ class UserRepositoryImpl(
     private val database: AppDatabase,
     private val tokenStore: TokenStore,
 ) : UserRepository {
-    override suspend fun getActiveUser(): UserEntity? =
-        database.userDao().getActiveUser()?.let { hydrateAndMigrate(it) }
+    override suspend fun getActiveUser(): UserEntity? = database.userDao().getActiveUser()?.let { hydrateAndMigrate(it) }
 
     override fun flowActiveUser(): Flow<UserEntity?> =
         database.userDao().flowActiveUser().map { user ->
             user?.let { overlayToken(it) }
         }
 
-    override suspend fun getUserById(userId: Int): UserEntity? =
-        database.userDao().getUserById(userId)?.let { hydrateAndMigrate(it) }
+    override suspend fun getUserById(userId: Int): UserEntity? = database.userDao().getUserById(userId)?.let { hydrateAndMigrate(it) }
 
-    override suspend fun listUsers(): List<UserEntity> =
-        database.userDao().listUsers().map { hydrateAndMigrate(it) }
+    override suspend fun listUsers(): List<UserEntity> = database.userDao().listUsers().map { hydrateAndMigrate(it) }
 
-    override fun flowUsers(): Flow<List<UserEntity>> =
-        database.userDao().flowUsers().map { list -> list.map { overlayToken(it) } }
+    override fun flowUsers(): Flow<List<UserEntity>> = database.userDao().flowUsers().map { list -> list.map { overlayToken(it) } }
 
     override suspend fun addUser(
         instanceUrl: String,

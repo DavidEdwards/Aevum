@@ -34,6 +34,7 @@ fun <T> PullToRefreshList(
 ) {
     val refreshScope = rememberCoroutineScope()
     var refreshing by rememberSaveable { mutableStateOf(false) }
+    val bottomPadding = listBottomContentPadding()
 
     fun internalRefresh() =
         refreshScope.launch {
@@ -61,7 +62,7 @@ fun <T> PullToRefreshList(
                         .verticalScroll(state = rememberScrollState()),
             ) {
                 content(result)
-                Spacer(modifier = Modifier.height(96.dp))
+                Spacer(modifier = Modifier.height(bottomPadding))
             }
 
             PullRefreshIndicator(

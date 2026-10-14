@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -44,9 +45,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import dae.aevum.ui.composables.reusable.listBottomContentPadding
 import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.viewmodels.WorklogViewModel
 import dae.aevum.utils.Formatters
+import dae.aevum.utils.WorklogTimeHelpers
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -60,7 +63,18 @@ fun WorklogDayDetailsScreen(
     viewModel: WorklogViewModel = hiltViewModel(),
     day: LocalDate? = null,
 ) {
-    val worklogs by viewModel.worklogIssuesLastTwoWeeks.collectAsState(initial = emptyList())
+    // When a specific day is opened from the calendar, query that day directly.
+    // Summary and details are different nav destinations, so each gets its own
+    // ViewModel — the summary lookback week count is not shared.
+    val worklogsFlow =
+        remember(day) {
+            if (day != null) {
+                viewModel.worklogIssuesForDay(day)
+            } else {
+                viewModel.worklogIssuesLastTwoWeeks
+            }
+        }
+    val worklogs by worklogsFlow.collectAsState(initial = emptyList())
     WorklogDayDetailsContent(entries = worklogs, day = day)
 }
 
@@ -69,21 +83,26 @@ private fun WorklogDayDetailsContent(
     entries: List<WorklogIssueUiModel>,
     day: LocalDate? = null,
 ) {
-    val grouped = entries.groupBy { it.from.atZone(ZoneId.systemDefault()).toLocalDate() }
+    val zone = ZoneId.systemDefault()
     val orderedDays =
-        if (day != null) listOf(day) else (0..13).map { LocalDate.now().minusDays(it.toLong()) }
+        if (day != null) listOf(day) else (0..13).map { LocalDate.now(zone).minusDays(it.toLong()) }
 
     LazyColumn(
         modifier =
             Modifier
                 .fillMaxSize()
                 .padding(16.dp),
-        contentPadding =
-            androidx.compose.foundation.layout
-                .PaddingValues(bottom = 96.dp),
+        contentPadding = PaddingValues(bottom = listBottomContentPadding()),
     ) {
         items(orderedDays) { selectedDay ->
-            val entriesForDay = grouped[selectedDay].orEmpty()
+            val dayStart = WorklogTimeHelpers.startOfDay(selectedDay, zone)
+            val dayEnd = WorklogTimeHelpers.endOfDayExclusive(selectedDay, zone)
+            // Prefer overlap with the local day so overnight worklogs still appear.
+            val entriesForDay =
+                entries.filter { e ->
+                    val to = WorklogTimeHelpers.effectiveTo(e.from, e.to, e.active, Instant.now())
+                    WorklogTimeHelpers.overlaps(e.from, to, dayStart, dayEnd)
+                }
             val issueKeysForDay = entriesForDay.map { it.issueId.value }.distinct().sorted()
             val colorMapForDay = generateColorMap(issueKeysForDay)
             val nowState =

@@ -1,5 +1,6 @@
 package dae.aevum.network
 
+import dae.aevum.network.models.IssuePickerSuggestionsRetro
 import dae.aevum.network.models.SearchRetro
 import dae.aevum.network.models.UserResponseRetro
 import dae.aevum.network.models.WorklogAddRetro
@@ -20,6 +21,15 @@ interface JiraService {
     fun getUser(
         @Query("query") query: String,
     ): Call<UserResponseRetro?>
+
+    @GET("issue/picker")
+    @Headers("Content-Type: application/json", "Accept: application/json")
+    fun pickIssues(
+        @Query("query") query: String,
+        @Query("currentJQL") currentJql: String? = null,
+        @Query("showSubTasks") showSubTasks: Boolean = true,
+        @Query("showSubTaskParent") showSubTaskParent: Boolean = true,
+    ): Call<IssuePickerSuggestionsRetro?>
 
     @GET("search/jql")
     @Headers("Content-Type: application/json", "Accept: application/json")

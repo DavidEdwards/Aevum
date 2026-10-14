@@ -22,9 +22,10 @@ class AudioRepositoryImpl(
     private val context: Context,
     @Suppress("UNUSED_PARAMETER") private val jiraRepository: JiraRepository,
 ) : AudioRepository {
-    override suspend fun getAudioText(): String {
-        return suspendCancellableCoroutine { continuation ->
+    override suspend fun getAudioText(): String =
+        suspendCancellableCoroutine { continuation ->
             val completed = AtomicBoolean(false)
+
             fun complete(value: String) {
                 if (completed.compareAndSet(false, true)) {
                     continuation.resume(value)
@@ -68,7 +69,8 @@ class AudioRepositoryImpl(
                     override fun onResults(results: Bundle?) {
                         Timber.v("Speech: onResults: $results")
                         val data =
-                            results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                            results
+                                ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                                 .orEmpty()
                         val text = data.joinToString(" ")
                         Timber.v("Speech: onResults: data: $data")
@@ -99,5 +101,4 @@ class AudioRepositoryImpl(
 
             speechRecognizer.startListening(speechRecognizerIntent)
         }
-    }
 }

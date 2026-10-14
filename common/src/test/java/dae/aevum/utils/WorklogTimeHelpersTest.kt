@@ -48,6 +48,27 @@ class WorklogTimeHelpersTest {
     }
 
     @Test
+    fun dayTargetHours_customWorkingDays() {
+        val monWedFri =
+            setOf(
+                java.time.DayOfWeek.MONDAY,
+                java.time.DayOfWeek.WEDNESDAY,
+                java.time.DayOfWeek.FRIDAY,
+            )
+        assertEquals(8.0, WorklogTimeHelpers.dayTargetHours(LocalDate.of(2026, 9, 14), 8.0, monWedFri), 0.0)
+        assertEquals(0.0, WorklogTimeHelpers.dayTargetHours(LocalDate.of(2026, 9, 15), 8.0, monWedFri), 0.0) // Tue
+        assertEquals(24.0, WorklogTimeHelpers.weekTargetHours(8.0, monWedFri), 0.0)
+    }
+
+    @Test
+    fun workingDaysMask_roundTrips() {
+        val days = WorklogTimeHelpers.DEFAULT_WORKING_DAYS
+        val mask = WorklogTimeHelpers.encodeWorkingDays(days)
+        assertEquals(WorklogTimeHelpers.DEFAULT_WORKING_DAYS_MASK, mask)
+        assertEquals(days, WorklogTimeHelpers.decodeWorkingDays(mask))
+    }
+
+    @Test
     fun meetsDayTarget_weekendZeroHoursMeets_weekdayNeedsEight() {
         val saturday = LocalDate.of(2026, 9, 20)
         val monday = LocalDate.of(2026, 9, 14)

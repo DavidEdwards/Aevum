@@ -34,6 +34,7 @@ import java.time.ZoneId
 fun WorklogBarChartScreen(
     viewModel: WorklogViewModel = hiltViewModel(),
     weekdayTargetHours: Double = WorklogTimeHelpers.WEEKDAY_TARGET_HOURS,
+    workingDays: Set<java.time.DayOfWeek> = WorklogTimeHelpers.DEFAULT_WORKING_DAYS,
 ) {
     val worklogs by viewModel.worklogIssuesLastTwoWeeks.collectAsState(initial = emptyList())
     val hasActive = worklogs.any { it.active }
@@ -103,7 +104,7 @@ fun WorklogBarChartScreen(
                 val y = size.height - barHeight
                 drawRect(
                     color =
-                        if (WorklogTimeHelpers.isDayOnTrack(hours, day, weekdayTargetHours)) {
+                        if (WorklogTimeHelpers.isDayOnTrack(hours, day, weekdayTargetHours, workingDays)) {
                             goodColor
                         } else {
                             badColor

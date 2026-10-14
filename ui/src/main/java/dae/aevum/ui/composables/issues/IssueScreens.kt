@@ -2,6 +2,7 @@ package dae.aevum.ui.composables.issues
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,6 +40,7 @@ import dae.aevum.common.R
 import dae.aevum.database.entities.IssueEntity
 import dae.aevum.ui.composables.reusable.HighlightColors
 import dae.aevum.ui.composables.reusable.TimesheetProgressBanner
+import dae.aevum.ui.composables.reusable.listBottomContentPadding
 import dae.aevum.ui.models.IssueUiModel
 import dae.aevum.ui.viewmodels.IssueViewModel
 import dae.aevum.ui.viewmodels.WorklogViewModel
@@ -57,6 +59,7 @@ fun IssueListScreen(
     viewModel: IssueViewModel = hiltViewModel(),
     onNavigateToIssue: (IssueId) -> Unit,
     onTogglePinIssue: (IssueId) -> Unit = {},
+    worklogViewModel: WorklogViewModel = hiltViewModel(),
     onNavigateToSummary: () -> Unit = {},
 ) {
     val activeUser by viewModel.activeUser.collectAsState(initial = null)
@@ -64,8 +67,6 @@ fun IssueListScreen(
         NoActiveUser()
         return
     }
-
-    val worklogViewModel: WorklogViewModel = hiltViewModel()
 
     LaunchedEffect(Unit) {
         Timber.v("Reload issue list screen")
@@ -96,14 +97,21 @@ fun IssueList(
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = IssuesTab.entries
     val refreshError by viewModel.refreshError.collectAsState()
+    val worklogRefreshError by worklogViewModel.summaryRefreshError.collectAsState()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
-    val refreshFailedMessage = stringResource(R.string.refresh_failed)
+    val refreshErrorMessage = refreshError?.let { stringResource(it) }
+    val worklogRefreshErrorMessage = worklogRefreshError?.let { stringResource(it) }
 
-    LaunchedEffect(refreshError) {
-        if (refreshError != null) {
-            snackbarHostState.showSnackbar(refreshFailedMessage)
-            viewModel.clearRefreshError()
-        }
+    LaunchedEffect(refreshErrorMessage) {
+        val message = refreshErrorMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.clearRefreshError()
+    }
+
+    LaunchedEffect(worklogRefreshErrorMessage) {
+        val message = worklogRefreshErrorMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        worklogViewModel.clearSummaryRefreshError()
     }
 
     Column(
@@ -121,6 +129,7 @@ fun IssueList(
             compact = true,
             weekdayTargetHours = targets.weekdayTargetHours,
             weekTargetHours = targets.weekTargetHours,
+            workingDays = targets.workingDays,
             onClick = onNavigateToSummary,
         )
         PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
@@ -132,9 +141,13 @@ fun IssueList(
                         Text(
                             text =
                                 when (tab) {
-                                    IssuesTab.Search -> stringResource(R.string.issues_tab_search)
-                                    IssuesTab.Favourites ->
+                                    IssuesTab.Search -> {
+                                        stringResource(R.string.issues_tab_search)
+                                    }
+
+                                    IssuesTab.Favourites -> {
                                         stringResource(R.string.issues_tab_favourites)
+                                    }
                                 },
                         )
                     },
@@ -146,20 +159,23 @@ fun IssueList(
 
         Box {
             when (tabs[selectedTabIndex]) {
-                IssuesTab.Search ->
+                IssuesTab.Search -> {
                     SearchIssuesContent(
                         viewModel = viewModel,
                         worklogViewModel = worklogViewModel,
                         onIssueSelected = onIssueSelected,
                         onTogglePinIssue = onTogglePinIssue,
                     )
-                IssuesTab.Favourites ->
+                }
+
+                IssuesTab.Favourites -> {
                     FavouritesIssuesContent(
                         viewModel = viewModel,
                         worklogViewModel = worklogViewModel,
                         onIssueSelected = onIssueSelected,
                         onTogglePinIssue = onTogglePinIssue,
                     )
+                }
             }
             androidx.compose.material3.SnackbarHost(
                 hostState = snackbarHostState,
@@ -185,10 +201,13 @@ private fun SearchIssuesContent(
     fun triggerRefresh() {
         refreshScope.launch {
             refreshing = true
-            viewModel.refreshIssues().join()
-            worklogViewModel.refreshWorklogsToday().join()
-            pagingItems.refresh()
-            refreshing = false
+            try {
+                viewModel.refreshIssues().join()
+                worklogViewModel.refreshWorklogsToday().join()
+                pagingItems.refresh()
+            } finally {
+                refreshing = false
+            }
         }
     }
 
@@ -208,12 +227,13 @@ private fun SearchIssuesContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        val filteredIssues by viewModel.filteredIssues.collectAsState()
+        // Search over the full local issue list, not only currently loaded paging pages.
         val items =
-            pagingItems.itemSnapshotList.items.filter { entity ->
-                val term = viewModel.searchTerm
-                term.isBlank() ||
-                    entity.id.value.contains(term, ignoreCase = true) ||
-                    entity.title.contains(term, ignoreCase = true)
+            if (viewModel.searchTerm.isBlank()) {
+                pagingItems.itemSnapshotList.items
+            } else {
+                filteredIssues
             }
 
         LaunchedEffect(viewModel.searchTerm, items.isEmpty()) {
@@ -242,14 +262,18 @@ private fun SearchIssuesContent(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
+
                 displayItems.isEmpty() -> {
                     Text(
                         text = stringResource(R.string.no_visible_issues),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
+
                 else -> {
-                    LazyColumn {
+                    LazyColumn(
+                        contentPadding = PaddingValues(bottom = listBottomContentPadding()),
+                    ) {
                         itemsIndexed(
                             items = displayItems,
                             key = { _, item -> item.id.value },
@@ -290,9 +314,12 @@ private fun FavouritesIssuesContent(
     fun triggerRefresh() {
         refreshScope.launch {
             refreshing = true
-            viewModel.refreshIssues().join()
-            worklogViewModel.refreshWorklogsToday().join()
-            refreshing = false
+            try {
+                viewModel.refreshIssues().join()
+                worklogViewModel.refreshWorklogsToday().join()
+            } finally {
+                refreshing = false
+            }
         }
     }
 
@@ -310,7 +337,9 @@ private fun FavouritesIssuesContent(
                 style = MaterialTheme.typography.bodyLarge,
             )
         } else {
-            LazyColumn {
+            LazyColumn(
+                contentPadding = PaddingValues(bottom = listBottomContentPadding()),
+            ) {
                 items(
                     items = pinnedIssues,
                     key = { it.id.value },

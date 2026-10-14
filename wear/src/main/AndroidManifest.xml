@@ -10,7 +10,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.DeviceDefault">
+        android:theme="@style/Theme.Aevum.Wear">
 
         <meta-data
             android:name="com.google.android.wearable.standalone"
@@ -19,7 +19,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:taskAffinity="">
+            android:taskAffinity=""
+            android:theme="@style/Theme.Aevum.Wear">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -30,7 +31,7 @@
             android:name=".StopTimerActivity"
             android:exported="true"
             android:taskAffinity=""
-            android:theme="@android:style/Theme.DeviceDefault" />
+            android:theme="@style/Theme.Aevum.Wear" />
 
         <service
             android:name=".tile.ActiveTimerTileService"
@@ -52,10 +53,15 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
-                <data
-                    android:host="*"
-                    android:pathPrefix="/active_timer"
-                    android:scheme="wear" />
+                <data android:scheme="wear" />
+                <data android:host="*" />
+                <data android:pathPrefix="/active_timer" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data android:scheme="wear" />
+                <data android:host="*" />
+                <data android:pathPrefix="/recent_issues" />
             </intent-filter>
         </service>
     </application>

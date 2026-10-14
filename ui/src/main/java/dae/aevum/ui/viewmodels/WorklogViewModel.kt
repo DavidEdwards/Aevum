@@ -4,6 +4,12 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.map
+import dae.aevum.domain.preferences.ProofreaderLogLine
+import dae.aevum.domain.preferences.ProofreaderProgress
+import dae.aevum.domain.preferences.SummaryHistoryState
 import dae.aevum.domain.preferences.TimesheetPreferences
 import dae.aevum.domain.preferences.TimesheetTargets
 import dae.aevum.domain.repositories.AudioRepository
@@ -12,9 +18,11 @@ import dae.aevum.domain.repositories.WidgetRefresher
 import dae.aevum.ui.models.WorklogIssueUiModel
 import dae.aevum.ui.models.WorklogUiModel
 import dae.aevum.utils.IssueId
+import dae.aevum.utils.NetworkErrors
 import dae.aevum.utils.TimesheetProgress
 import dae.aevum.utils.WorklogTimeHelpers
 import dae.aevum.utils.WorklogUploadResult
+import androidx.annotation.StringRes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,17 +33,16 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import androidx.paging.PagingData
-import androidx.paging.cachedIn
-import androidx.paging.map
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -49,7 +56,10 @@ class WorklogViewModel
         @param:ApplicationContext private val appContext: Context,
         private val widgetRefresher: WidgetRefresher,
         private val timesheetPreferences: TimesheetPreferences,
+        private val proofreaderProgress: ProofreaderProgress,
     ) : ViewModel() {
+        val proofreaderLogLines: StateFlow<List<ProofreaderLogLine>> = proofreaderProgress.lines
+
         val timesheetTargets: StateFlow<TimesheetTargets> =
             timesheetPreferences.targets.stateIn(
                 viewModelScope,
@@ -80,8 +90,7 @@ class WorklogViewModel
                 .pagedPendingWorklogs()
                 .map { pagingData ->
                     pagingData.map { entity -> WorklogUiModel.fromEntity(entity = entity) }
-                }
-                .cachedIn(viewModelScope)
+                }.cachedIn(viewModelScope)
 
         val worklogsTodayFromMe =
             jiraRepository
@@ -96,6 +105,55 @@ class WorklogViewModel
                 .map { list ->
                     list.map { WorklogIssueUiModel.fromEntity(entity = it) }
                 }
+
+        private val _summaryWeekCount = MutableStateFlow(SummaryHistoryState.DEFAULT_SUMMARY_WEEKS)
+        val summaryWeekCount: StateFlow<Int> = _summaryWeekCount.asStateFlow()
+
+        private val _isLoadingMoreSummary = MutableStateFlow(false)
+        val isLoadingMoreSummary: StateFlow<Boolean> = _isLoadingMoreSummary.asStateFlow()
+
+        /** Upper bound of the last successful summary remote sync (newer refreshes start here). */
+        private var summaryFetchedUntil: Instant? = null
+
+        /** Start of the oldest range already pulled from Jira into the local DB. */
+        private var summaryOldestSyncedStart: Instant? = null
+
+        init {
+            viewModelScope.launch {
+                val history = timesheetPreferences.summaryHistory.first()
+                _summaryWeekCount.value = history.weekCount
+                summaryFetchedUntil = history.fetchedUntil
+                summaryOldestSyncedStart = history.oldestSyncedStart
+                Timber.v(
+                    "Restored summary history: weeks=%d fetchedUntil=%s oldestSynced=%s",
+                    history.weekCount,
+                    history.fetchedUntil,
+                    history.oldestSyncedStart,
+                )
+            }
+        }
+
+        val worklogIssuesForSummary: Flow<List<WorklogIssueUiModel>> =
+            _summaryWeekCount
+                .flatMapLatest { weeks ->
+                    val (start, end) = WorklogTimeHelpers.summaryWindow(weeks)
+                    jiraRepository.getWorklogIssuesInRange(start, end)
+                }.map { list ->
+                    list.map { WorklogIssueUiModel.fromEntity(entity = it) }
+                }
+
+        /**
+         * Worklogs overlapping a single local calendar day.
+         * Independent of [summaryWeekCount] so day details work after navigating from
+         * a summary screen that had loaded older history in a different ViewModel instance.
+         */
+        fun worklogIssuesForDay(day: LocalDate): Flow<List<WorklogIssueUiModel>> {
+            val start = WorklogTimeHelpers.startOfDay(day)
+            val end = WorklogTimeHelpers.endOfDayExclusive(day)
+            return jiraRepository.getWorklogIssuesInRange(start, end).map { list ->
+                list.map { WorklogIssueUiModel.fromEntity(entity = it) }
+            }
+        }
 
         val timesheetProgress: Flow<TimesheetProgress> =
             worklogIssuesLastTwoWeeks.map { list ->
@@ -125,8 +183,8 @@ class WorklogViewModel
         private val _isRefreshingSummary = MutableStateFlow(false)
         val isRefreshingSummary: StateFlow<Boolean> = _isRefreshingSummary.asStateFlow()
 
-        private val _summaryRefreshError = MutableStateFlow<String?>(null)
-        val summaryRefreshError: StateFlow<String?> = _summaryRefreshError.asStateFlow()
+        private val _summaryRefreshError = MutableStateFlow<Int?>(null)
+        val summaryRefreshError: StateFlow<Int?> = _summaryRefreshError.asStateFlow()
 
         private val _splitError = MutableStateFlow<String?>(null)
         val splitError: StateFlow<String?> = _splitError.asStateFlow()
@@ -163,6 +221,7 @@ class WorklogViewModel
             summary: String,
         ) {
             viewModelScope.launch {
+                proofreaderProgress.clear()
                 _isUpdatingWorklog.value = true
                 try {
                     jiraRepository.updateWorklog(worklogId, from, to, summary)
@@ -179,6 +238,7 @@ class WorklogViewModel
             to: Instant,
             summary: String,
         ) {
+            proofreaderProgress.clear()
             _isUpdatingWorklog.value = true
             try {
                 jiraRepository.updateWorklog(worklogId, from, to, summary)
@@ -239,8 +299,7 @@ class WorklogViewModel
         }
 
         /** Count of non-active pending worklogs with blank summaries. */
-        fun countBlankSummaries(pending: List<WorklogUiModel>): Int =
-            pending.count { !it.active && it.comment.isBlank() }
+        fun countBlankSummaries(pending: List<WorklogUiModel>): Int = pending.count { !it.active && it.comment.isBlank() }
 
         fun deleteLog(
             worklogId: Long,
@@ -272,6 +331,7 @@ class WorklogViewModel
             after: () -> Unit = {},
         ) {
             viewModelScope.launch {
+                proofreaderProgress.clear()
                 _isStoppingWorklog.value = true
                 try {
                     jiraRepository.stopLoggingFor(worklogId, summary)
@@ -287,6 +347,7 @@ class WorklogViewModel
             worklogId: Long,
             summary: String,
         ) {
+            proofreaderProgress.clear()
             _isStoppingWorklog.value = true
             try {
                 jiraRepository.stopLoggingFor(worklogId, summary)
@@ -301,6 +362,7 @@ class WorklogViewModel
             after: (summary: String) -> Unit = {},
         ) {
             viewModelScope.launch {
+                proofreaderProgress.clear()
                 _isStoppingWorklog.value = true
                 try {
                     val summary = audioRepository.getAudioText()
@@ -318,6 +380,7 @@ class WorklogViewModel
          * @return the captured summary (may be blank if speech failed or was empty)
          */
         suspend fun stopLoggingAudioLogAwait(worklogId: Long): String {
+            proofreaderProgress.clear()
             _isStoppingWorklog.value = true
             try {
                 val summary = audioRepository.getAudioText()
@@ -333,7 +396,7 @@ class WorklogViewModel
             viewModelScope.launch {
                 Timber.v("Refreshing worklogs for today from Jira...")
                 jiraRepository.refreshWorklogsToday().onFailure { e ->
-                    _summaryRefreshError.value = e.message ?: "Refresh failed"
+                    reportRefreshError(e)
                 }
             }
 
@@ -342,16 +405,97 @@ class WorklogViewModel
                 _isRefreshingSummary.value = true
                 _summaryRefreshError.value = null
                 try {
-                    Timber.v("Refreshing worklogs for last two weeks from Jira…")
-                    jiraRepository.refreshWorklogsForLastTwoWeeks().onFailure { e ->
-                        _summaryRefreshError.value = e.message ?: "Refresh failed"
+                    val (_, rangeEnd) = WorklogTimeHelpers.summaryWindow(_summaryWeekCount.value)
+                    val previousUntil = summaryFetchedUntil
+                    val rangeStart =
+                        if (previousUntil != null) {
+                            // Small overlap so late edits near the watermark are still picked up.
+                            previousUntil.minus(1, ChronoUnit.DAYS)
+                        } else {
+                            WorklogTimeHelpers.summaryWindow(SummaryHistoryState.DEFAULT_SUMMARY_WEEKS).first
+                        }
+                    Timber.v(
+                        "Refreshing summary worklogs from Jira since %s (incremental=%s)…",
+                        rangeStart,
+                        previousUntil != null,
+                    )
+                    jiraRepository.refreshWorklogsInRange(rangeStart, rangeEnd).onFailure { e ->
+                        reportRefreshError(e)
+                        return@launch
+                    }
+                    val now = Instant.now()
+                    summaryFetchedUntil = now
+                    timesheetPreferences.setSummaryFetchedUntil(now)
+                    // First successful sync establishes how far back local history is covered.
+                    if (summaryOldestSyncedStart == null || rangeStart.isBefore(summaryOldestSyncedStart)) {
+                        summaryOldestSyncedStart = rangeStart
+                        timesheetPreferences.setSummaryOldestSyncedStart(rangeStart)
                     }
                 } finally {
                     _isRefreshingSummary.value = false
                 }
             }
 
+        /**
+         * Expand the calendar further into the past. Uses the local DB when that range was
+         * already synced; only hits Jira for history older than [summaryOldestSyncedStart].
+         */
+        fun loadMoreSummaryHistory(): Job =
+            viewModelScope.launch {
+                if (_isLoadingMoreSummary.value) return@launch
+                val current = _summaryWeekCount.value
+                if (current >= MAX_SUMMARY_WEEKS) return@launch
+
+                _isLoadingMoreSummary.value = true
+                try {
+                    val newCount = (current + SUMMARY_WEEKS_PAGE).coerceAtMost(MAX_SUMMARY_WEEKS)
+                    val (newStart, _) = WorklogTimeHelpers.summaryWindow(newCount)
+                    val (oldStart, _) = WorklogTimeHelpers.summaryWindow(current)
+                    val oldestSynced = summaryOldestSyncedStart
+
+                    val needsRemote =
+                        oldestSynced == null || newStart.isBefore(oldestSynced)
+                    if (needsRemote) {
+                        val fetchEnd = oldestSynced ?: oldStart
+                        Timber.v(
+                            "Fetching older summary history from Jira %s → %s (weeks %d → %d)…",
+                            newStart,
+                            fetchEnd,
+                            current,
+                            newCount,
+                        )
+                        jiraRepository.refreshWorklogsInRange(newStart, fetchEnd).onFailure { e ->
+                            reportRefreshError(e)
+                            return@launch
+                        }
+                        summaryOldestSyncedStart = newStart
+                        timesheetPreferences.setSummaryOldestSyncedStart(newStart)
+                    } else {
+                        Timber.v(
+                            "Using cached DB history for weeks %d → %d (already synced to %s)",
+                            current,
+                            newCount,
+                            oldestSynced,
+                        )
+                    }
+
+                    _summaryWeekCount.value = newCount
+                    timesheetPreferences.setSummaryWeekCount(newCount)
+                } finally {
+                    _isLoadingMoreSummary.value = false
+                }
+            }
+
+        private fun reportRefreshError(error: Throwable) {
+            @StringRes val messageRes = NetworkErrors.messageRes(error)
+            _summaryRefreshError.value = messageRes
+            Timber.w(error, "Worklog refresh failed")
+        }
+
         companion object {
             private const val SAVED_VIEWED_WORKLOG_ID = "viewedWorklogId"
+            const val INITIAL_SUMMARY_WEEKS = SummaryHistoryState.DEFAULT_SUMMARY_WEEKS
+            const val SUMMARY_WEEKS_PAGE = 4
+            const val MAX_SUMMARY_WEEKS = SummaryHistoryState.MAX_SUMMARY_WEEKS
         }
     }

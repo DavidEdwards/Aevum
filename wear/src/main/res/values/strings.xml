@@ -6,7 +6,17 @@
     <string name="no_active_timer">No active timer</string>
     <string name="open_on_phone">Start a timer on your phone</string>
     <string name="wear_status_idle">Waiting for phone…</string>
+    <string name="issue_label">Issue</string>
+    <string name="title_label">Title</string>
+    <string name="elapsed_label">Elapsed</string>
+    <string name="status_label">Status</string>
+    <string name="open_details">Details</string>
     <string name="stop">Stop</string>
+    <string name="recent_issues_heading">Recent issues</string>
+    <string name="start_timer">Start</string>
+    <string name="starting_timer">Starting…</string>
+    <string name="start_timer_failed">Could not reach phone</string>
+    <string name="no_recent_issues">No recent issues yet</string>
     <string name="speak_summary_for">Speak summary for %1$s</string>
     <string name="speak_worklog_prompt">What did you work on?</string>
     <string name="speak_again">Speak again</string>

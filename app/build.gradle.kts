@@ -137,7 +137,7 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.ui.test.junit4)
 
-    // ML Kit GenAI Proofreading
+    // ML Kit GenAI Proofreading (on-device / Koog on-device option)
     implementation(libs.genai.proofreading)
 
     // For ListenableFuture await

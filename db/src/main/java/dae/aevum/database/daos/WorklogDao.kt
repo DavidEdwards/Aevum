@@ -145,6 +145,7 @@ interface WorklogDao {
 
     @Query(
         "SELECT * FROM worklogs WHERE userId = :userId AND jiraUserAccountId = :jiraUserAccountId " +
+            "AND pending = 0 AND active = 0 " +
             "AND `from` < :dayEnd AND `to` > :dayStart " +
             "ORDER BY `from` DESC LIMIT 500",
     )
@@ -188,6 +189,8 @@ interface WorklogDao {
             "AND worklogs.userId = issues.userId " +
             "AND worklogs.userId = :userId " +
             "AND worklogs.jiraUserAccountId = :jiraUserAccountId " +
+            "AND worklogs.pending = 0 " +
+            "AND worklogs.active = 0 " +
             "AND worklogs.`from` < :dayEnd AND worklogs.`to` > :dayStart " +
             "ORDER BY worklogs.`from` DESC",
     )

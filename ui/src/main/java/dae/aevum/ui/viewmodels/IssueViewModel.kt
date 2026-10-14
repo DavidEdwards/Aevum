@@ -17,8 +17,10 @@ import dae.aevum.domain.repositories.UserRepository
 import dae.aevum.domain.repositories.WidgetRefresher
 import dae.aevum.ui.models.IssueUiModel
 import dae.aevum.ui.models.WorklogUiModel
+import androidx.annotation.StringRes
 import dae.aevum.utils.Intents
 import dae.aevum.utils.IssueId
+import dae.aevum.utils.NetworkErrors
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -120,8 +122,8 @@ class IssueViewModel
             savedStateHandle[SAVED_VIEWED_ISSUE_ID] = id?.value
         }
 
-        private val _refreshError = MutableStateFlow<String?>(null)
-        val refreshError: StateFlow<String?> = _refreshError.asStateFlow()
+        private val _refreshError = MutableStateFlow<Int?>(null)
+        val refreshError: StateFlow<Int?> = _refreshError.asStateFlow()
 
         fun clearRefreshError() {
             _refreshError.value = null
@@ -137,6 +139,10 @@ class IssueViewModel
                 _isSearchingRemote.value = true
                 try {
                     _remoteSearchResults.value = repository.searchIssuesRemote(term)
+                } catch (e: Exception) {
+                    Timber.w(e, "Remote issue search failed")
+                    reportRefreshError(e)
+                    _remoteSearchResults.value = emptyList()
                 } finally {
                     _isSearchingRemote.value = false
                 }
@@ -147,7 +153,7 @@ class IssueViewModel
             viewModelScope.launch {
                 Timber.v("Refreshing issues…")
                 repository.refreshIssuesfromJira().onFailure { e ->
-                    _refreshError.value = e.message ?: "Refresh failed"
+                    reportRefreshError(e)
                 }
             }
 
@@ -155,9 +161,15 @@ class IssueViewModel
             viewModelScope.launch {
                 Timber.v("Refreshing worklogs…")
                 repository.refreshWorklogsFor(issueId).onFailure { e ->
-                    _refreshError.value = e.message ?: "Refresh failed"
+                    reportRefreshError(e)
                 }
             }
+
+        private fun reportRefreshError(error: Throwable) {
+            @StringRes val messageRes = NetworkErrors.messageRes(error)
+            _refreshError.value = messageRes
+            Timber.w(error, "Issue refresh failed")
+        }
 
         fun startLogFor(
             issueId: IssueId,
@@ -230,6 +242,7 @@ class IssueViewModel
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Error getting latest issues for project $projectKey")
+                reportRefreshError(e)
             } finally {
                 _isLoadingProjectIssues.value = false
             }

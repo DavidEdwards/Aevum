@@ -39,9 +39,9 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import dae.aevum.MainActivity
-import dae.aevum.common.R as CommonR
 import dae.aevum.utils.Intents
 import timber.log.Timber
+import dae.aevum.common.R as CommonR
 
 class AevumAppWidget : GlanceAppWidget() {
     override val stateDefinition = PreferencesGlanceStateDefinition
@@ -97,18 +97,21 @@ class AevumAppWidget : GlanceAppWidget() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             when (state) {
-                is WidgetUiState.Active ->
+                is WidgetUiState.Active -> {
                     when (layout) {
                         WidgetLayout.COMPACT -> ActiveCompact(context, state.active)
                         WidgetLayout.REGULAR -> ActiveRegular(context, state.active)
                         WidgetLayout.EXPANDED -> ActiveExpanded(context, state.active)
                     }
-                is WidgetUiState.Idle ->
+                }
+
+                is WidgetUiState.Idle -> {
                     when (layout) {
                         WidgetLayout.COMPACT -> IdleCompact(context, state.suggestion)
                         WidgetLayout.REGULAR -> IdleRegular(context, state.suggestion)
                         WidgetLayout.EXPANDED -> IdleExpanded(context, state.suggestion)
                     }
+                }
             }
         }
     }
@@ -416,8 +419,8 @@ class AevumAppWidget : GlanceAppWidget() {
         Intent(context, MainActivity::class.java).apply {
             flags =
                 Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
 
     private fun stopIntent(
@@ -480,11 +483,17 @@ class AevumAppWidget : GlanceAppWidget() {
 
         fun layoutFor(size: DpSize): WidgetLayout =
             when {
-                size.height <= COMPACT.height + 8.dp || size.width < REGULAR.width ->
+                size.height <= COMPACT.height + 8.dp || size.width < REGULAR.width -> {
                     WidgetLayout.COMPACT
-                size.height < EXPANDED.height || size.width < EXPANDED.width ->
+                }
+
+                size.height < EXPANDED.height || size.width < EXPANDED.width -> {
                     WidgetLayout.REGULAR
-                else -> WidgetLayout.EXPANDED
+                }
+
+                else -> {
+                    WidgetLayout.EXPANDED
+                }
             }
     }
 }

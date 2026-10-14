@@ -3,6 +3,7 @@ package dae.aevum.ui.composables.worklogs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,7 +25,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -38,9 +42,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.paging.compose.collectAsLazyPagingItems
 import dae.aevum.common.R
 import dae.aevum.ui.composables.issues.IssueList
+import dae.aevum.ui.composables.reusable.listBottomContentPadding
 import dae.aevum.ui.viewmodels.WorklogViewModel
 import dae.aevum.utils.Formatters
 import dae.aevum.utils.IssueId
@@ -64,7 +68,29 @@ fun WorklogListScreen(
     incrementWorklogTime: (workId: Long, amount: Long) -> Unit,
     decrementWorklogTime: (workId: Long, amount: Long) -> Unit,
 ) {
-    val pagingItems = viewModel.pagedPendingWorklogs.collectAsLazyPagingItems()
+    val pendingWorklogs by viewModel.pendingWorklogs.collectAsState(initial = emptyList())
+    val worklogsToday by viewModel.worklogsTodayFromMe.collectAsState(initial = emptyList())
+    val refreshError by viewModel.summaryRefreshError.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val refreshErrorMessage = refreshError?.let { stringResource(it) }
+
+    LaunchedEffect(refreshErrorMessage) {
+        val message = refreshErrorMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.clearSummaryRefreshError()
+    }
+
+    val activeWorklog = pendingWorklogs.firstOrNull { it.active }
+    val readyToUpload = pendingWorklogs.filter { !it.active }
+    val hasPending = pendingWorklogs.isNotEmpty()
+
+    val postedTotal =
+        remember(worklogsToday) {
+            worklogsToday
+                .fold(Duration.ZERO) { acc, model ->
+                    acc.plus(Duration.between(model.from, model.to))
+                }.human()
+        }
 
     val refreshScope = rememberCoroutineScope()
     var refreshing by rememberSaveable { mutableStateOf(false) }
@@ -72,111 +98,114 @@ fun WorklogListScreen(
     fun triggerRefresh() {
         refreshScope.launch {
             refreshing = true
-            viewModel.refreshWorklogsToday().join()
-            pagingItems.refresh()
-            refreshing = false
+            try {
+                viewModel.refreshWorklogsToday().join()
+            } finally {
+                refreshing = false
+            }
         }
     }
 
     val refreshState = rememberPullRefreshState(refreshing, ::triggerRefresh)
 
-    Column(
+    Box(
         modifier =
             modifier
-                .padding(horizontal = 16.dp),
+                .fillMaxSize()
+                .pullRefresh(refreshState),
     ) {
-        Spacer(modifier = Modifier.height(8.dp))
-
-        AlreadyLoggedTodayList()
-
-        Box(
+        LazyColumn(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .pullRefresh(refreshState),
+                    .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = listBottomContentPadding()),
         ) {
-            if (pagingItems.itemCount == 0) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.no_pending_worklogs),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            } else {
-                LazyColumn {
-                    itemsIndexed(
-                        items = pagingItems.itemSnapshotList.items,
-                        key = { _, item -> item.workId },
-                    ) { _, model ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        WorklogCard(
-                            worklogUiModel = model,
-                            onNavigate = {
-                                onNavigateToEditor.invoke(it.workId)
-                            },
-                            stopLogging = stopLogging,
-                            deleteWorklog = deleteWorklog,
-                            changeIssueId = changeIssueId,
-                            splitWorklog = splitWorklog,
-                            incrementWorklogTime = incrementWorklogTime,
-                            decrementWorklogTime = decrementWorklogTime,
-                        )
-                    }
+            if (activeWorklog != null) {
+                item(key = "section_active") {
+                    PendingSectionHeader(title = stringResource(R.string.currently_timing))
+                }
+                item(key = "active_${activeWorklog.workId}") {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    WorklogCard(
+                        worklogUiModel = activeWorklog,
+                        onNavigate = { onNavigateToEditor(it.workId) },
+                        stopLogging = stopLogging,
+                        deleteWorklog = deleteWorklog,
+                        changeIssueId = changeIssueId,
+                        splitWorklog = splitWorklog,
+                        incrementWorklogTime = incrementWorklogTime,
+                        decrementWorklogTime = decrementWorklogTime,
+                    )
                 }
             }
 
-            PullRefreshIndicator(
-                refreshing = refreshing,
-                state = refreshState,
-                modifier = Modifier.align(Alignment.TopCenter),
-            )
-        }
-    }
-}
-
-@Composable
-fun AlreadyLoggedTodayList(
-    modifier: Modifier = Modifier,
-    viewModel: WorklogViewModel = hiltViewModel(),
-) {
-    val worklogsToday by viewModel.worklogsTodayFromMe.collectAsState(initial = emptyList())
-
-    if (worklogsToday.isNotEmpty()) {
-        Column(
-            modifier = modifier,
-        ) {
-            Text(
-                text = stringResource(R.string.worklogs_posted_today_already),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            worklogsToday.forEach { model ->
-                val duration = Duration.between(model.from, model.to).human()
-                Text(
-                    text = "${model.issueId.value}: $duration",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    text = "  ${model.issueTitle}",
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    color = MaterialTheme.colorScheme.secondary,
-                )
+            if (hasPending) {
+                item(key = "pending_chart") {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    PendingBreakdownChart(pending = pendingWorklogs)
+                }
             }
 
-            val totalDuration =
-                worklogsToday
-                    .map { model -> Duration.between(model.from, model.to) }
-                    .fold(Duration.ZERO) { d1: Duration, d2: Duration ->
-                        d1.plus(d2)
-                    }.human()
-            Text(
-                text = "Total: $totalDuration",
-                style = MaterialTheme.typography.bodySmall,
-            )
+            if (readyToUpload.isNotEmpty()) {
+                item(key = "section_ready") {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PendingSectionHeader(title = stringResource(R.string.ready_to_upload))
+                }
+                itemsIndexed(
+                    items = readyToUpload,
+                    key = { _, item -> "pending_${item.workId}" },
+                ) { _, model ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    WorklogCard(
+                        worklogUiModel = model,
+                        onNavigate = { onNavigateToEditor(it.workId) },
+                        stopLogging = stopLogging,
+                        deleteWorklog = deleteWorklog,
+                        changeIssueId = changeIssueId,
+                        splitWorklog = splitWorklog,
+                        incrementWorklogTime = incrementWorklogTime,
+                        decrementWorklogTime = decrementWorklogTime,
+                    )
+                }
+            } else if (!hasPending) {
+                item(key = "empty_pending") {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.no_pending_worklogs),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            if (worklogsToday.isNotEmpty()) {
+                item(key = "section_posted") {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    PendingSectionHeader(
+                        title = stringResource(R.string.worklogs_posted_today_already),
+                        trailing = stringResource(R.string.posted_today_total, postedTotal),
+                    )
+                }
+                itemsIndexed(
+                    items = worklogsToday,
+                    key = { _, item -> "posted_${item.workId}" },
+                ) { _, model ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PostedWorklogCard(model = model)
+                }
+            }
         }
+
+        PullRefreshIndicator(
+            refreshing = refreshing,
+            state = refreshState,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
@@ -332,6 +361,8 @@ fun WorklogSplitterTimeScreen(
             )
             Text(text = stringResource(R.string.save))
         }
+
+        Spacer(modifier = Modifier.height(listBottomContentPadding()))
     }
 }
 

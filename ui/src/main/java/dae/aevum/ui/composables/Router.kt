@@ -1,10 +1,10 @@
 package dae.aevum.ui.composables
 
-import androidx.compose.animation.Crossfade
 import android.Manifest
 import android.content.res.Configuration
 import android.os.Build
 import androidx.annotation.StringRes
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -73,7 +74,9 @@ import dae.aevum.ui.composables.dialogs.CompletedWorklogDialog
 import dae.aevum.ui.composables.issues.IssueList
 import dae.aevum.ui.composables.issues.IssueListScreen
 import dae.aevum.ui.composables.issues.IssueScreen
+import dae.aevum.ui.composables.reusable.LocalScaffoldContentPadding
 import dae.aevum.ui.composables.users.UserListScreen
+import dae.aevum.ui.composables.users.UserSettingsScreen
 import dae.aevum.ui.composables.worklogs.WorklogBarChartScreen
 import dae.aevum.ui.composables.worklogs.WorklogDayDetailsScreen
 import dae.aevum.ui.composables.worklogs.WorklogEditorScreen
@@ -134,6 +137,9 @@ sealed class Screen(
     data object UserNewDialog :
         Screen("users/new", R.string.add_user, Icons.Outlined.Add)
 
+    data object UserSettings :
+        Screen("users/{userId}/settings", R.string.user_settings, Icons.Outlined.AccountCircle)
+
     data object Summary : Screen("summary", R.string.summary_title, Icons.Outlined.BarChart)
 
     data object SummaryBar : Screen("summary/bar", R.string.summary_title, Icons.Outlined.Home)
@@ -148,6 +154,7 @@ sealed class Screen(
 val screens =
     listOf(
         Screen.Users,
+        Screen.UserSettings,
         Screen.Issues,
         Screen.IssueView,
         Screen.Worklogs,
@@ -243,6 +250,7 @@ fun AppScaffold(
         }
 
     val snackbarHostState = remember { androidx.compose.material.SnackbarHostState() }
+    RequestLocalNetworkPermissionOnFailure(snackbarHostState = snackbarHostState)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -278,12 +286,14 @@ fun AppScaffold(
             insets.calculateLeftPadding(LayoutDirection.Ltr),
             insets.calculateRightPadding(LayoutDirection.Ltr),
         )
-        AppNavHost(
-            modifier = Modifier.fillMaxSize(),
-            navController = navController,
-            userViewModel = userViewModel,
-            startDestination = startDestination,
-        )
+        CompositionLocalProvider(LocalScaffoldContentPadding provides insets) {
+            AppNavHost(
+                modifier = Modifier.fillMaxSize(),
+                navController = navController,
+                userViewModel = userViewModel,
+                startDestination = startDestination,
+            )
+        }
     }
 }
 
@@ -298,6 +308,36 @@ private fun RequestNotificationPermissionIfNeeded(enabled: Boolean) {
     LaunchedEffect(enabled, notificationPermission.status.isGranted) {
         if (!notificationPermission.status.isGranted) {
             notificationPermission.launchPermissionRequest()
+        }
+    }
+}
+
+/**
+ * Only after a LAN proofreader connect failure: show why, then ask for
+ * ACCESS_LOCAL_NETWORK (Android 17+ / targetSdk 37).
+ */
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+private fun RequestLocalNetworkPermissionOnFailure(
+    snackbarHostState: androidx.compose.material.SnackbarHostState,
+    viewModel: dae.aevum.ui.viewmodels.LocalNetworkPermissionViewModel = hiltViewModel(),
+) {
+    if (Build.VERSION.SDK_INT < dae.aevum.utils.LocalNetworkUrls.ACCESS_LOCAL_NETWORK_API) {
+        return
+    }
+
+    val localNetworkPermission =
+        rememberPermissionState(dae.aevum.utils.LocalNetworkUrls.ACCESS_LOCAL_NETWORK_PERMISSION)
+    val rationale = stringResource(R.string.local_network_permission_rationale)
+
+    LaunchedEffect(viewModel) {
+        viewModel.accessRequired.collect {
+            Timber.i("LAN proofreader failed; showing rationale and requesting ACCESS_LOCAL_NETWORK")
+            // Snackbar gives context; permission dialog is launched in parallel (don't wait for dismiss).
+            launch { snackbarHostState.showSnackbar(rationale) }
+            if (!localNetworkPermission.status.isGranted) {
+                localNetworkPermission.launchPermissionRequest()
+            }
         }
     }
 }
@@ -390,8 +430,17 @@ private fun BottomBar(
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
         bottomNav.forEach { screen ->
+            val route = currentDestination?.route.orEmpty()
             val selected =
-                currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                when (screen) {
+                    Screen.Users -> {
+                        route == Screen.Users.route || route.startsWith("users/")
+                    }
+
+                    else -> {
+                        currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                    }
+                }
             val enabled =
                 when (screen) {
                     Screen.Users -> true
@@ -459,15 +508,20 @@ private fun Fab(
                 successMessage?.let { snackbarHostState.showSnackbar(it) }
                 worklogViewModel.clearUploadState()
             }
+
             is dae.aevum.utils.WorklogUploadResult.PartialFailure -> {
                 partialMessage?.let { snackbarHostState.showSnackbar(it) }
                 worklogViewModel.clearUploadState()
             }
+
             is dae.aevum.utils.WorklogUploadResult.Failed -> {
                 snackbarHostState.showSnackbar(state.message ?: failedFallback)
                 worklogViewModel.clearUploadState()
             }
-            else -> Unit
+
+            else -> {
+                // Idle / success already handled above
+            }
         }
     }
 
@@ -594,13 +648,22 @@ private fun AppNavHost(
                     selectUser = { id ->
                         userViewModel.selectUser(id)
                     },
-                    deleteUser = { id ->
-                        userViewModel.removeUser(id)
-                    },
-                    updateUserToken = { id, token, after ->
-                        userViewModel.updateUserToken(id, token, after)
+                    openSettings = { id ->
+                        navController.navigate("users/$id/settings")
                     },
                 )
+            }
+            composable(Screen.UserSettings.route) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId")?.toIntOrNull()
+                if (userId != null) {
+                    UserSettingsScreen(
+                        userId = userId,
+                        viewModel = userViewModel,
+                        onUserDeleted = {
+                            navController.popBackStack()
+                        },
+                    )
+                }
             }
 
             composable(Screen.Issues.route) {
@@ -688,6 +751,7 @@ private fun AppNavHost(
                     },
                     weekdayTargetHours = targets.weekdayTargetHours,
                     weekTargetHours = targets.weekTargetHours,
+                    workingDays = targets.workingDays,
                 )
             }
             composable(Screen.SummaryBar.route) {
@@ -696,6 +760,7 @@ private fun AppNavHost(
                 WorklogBarChartScreen(
                     viewModel = viewModel,
                     weekdayTargetHours = targets.weekdayTargetHours,
+                    workingDays = targets.workingDays,
                 )
             }
             composable(Screen.SummaryDetails.route) {
