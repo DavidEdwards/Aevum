@@ -185,12 +185,17 @@ fun Router(
     onStopDialogOpened: () -> Unit = {},
     pendingEditorWorklogId: Long? = null,
     onEditorOpened: () -> Unit = {},
+    pendingSearchQuery: String? = null,
+    onSearchQueryConsumed: () -> Unit = {},
+    pendingOpenFeature: String? = null,
+    onOpenFeatureConsumed: () -> Unit = {},
 ) {
     val navController = rememberNavController()
 
     var currentScreen by remember {
         mutableStateOf<Screen>(Screen.Issues)
     }
+    var searchQueryForIssues by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(navController) {
         navController.currentBackStackEntryFlow.collect { backStackEntry ->
@@ -214,7 +219,49 @@ fun Router(
         onEditorOpened()
     }
 
-    AppScaffold(navController = navController, currentScreen = currentScreen, onReady = onReady)
+    LaunchedEffect(pendingSearchQuery) {
+        val query = pendingSearchQuery ?: return@LaunchedEffect
+        searchQueryForIssues = query
+        navController.navigate(Screen.Issues.route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+        onSearchQueryConsumed()
+    }
+
+    LaunchedEffect(pendingOpenFeature) {
+        val feature = pendingOpenFeature ?: return@LaunchedEffect
+        val route =
+            when (feature) {
+                dae.aevum.utils.Intents.FEATURE_ISSUES -> Screen.Issues.route
+                dae.aevum.utils.Intents.FEATURE_WORKLOGS -> Screen.Worklogs.route
+                dae.aevum.utils.Intents.FEATURE_SUMMARY -> Screen.Summary.route
+                else -> {
+                    Timber.w("Unknown Assistant feature: %s", feature)
+                    onOpenFeatureConsumed()
+                    return@LaunchedEffect
+                }
+            }
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+        onOpenFeatureConsumed()
+    }
+
+    AppScaffold(
+        navController = navController,
+        currentScreen = currentScreen,
+        onReady = onReady,
+        pendingSearchQuery = searchQueryForIssues,
+        onPendingSearchQueryConsumed = { searchQueryForIssues = null },
+    )
 }
 
 @Composable
@@ -222,6 +269,8 @@ fun AppScaffold(
     navController: NavHostController,
     currentScreen: Screen,
     onReady: () -> Unit = {},
+    pendingSearchQuery: String? = null,
+    onPendingSearchQueryConsumed: () -> Unit = {},
     userViewModel: UserViewModel = hiltViewModel(),
 ) {
     val activeUserState by userViewModel.activeUserState.collectAsState()
@@ -292,6 +341,8 @@ fun AppScaffold(
                 navController = navController,
                 userViewModel = userViewModel,
                 startDestination = startDestination,
+                pendingSearchQuery = pendingSearchQuery,
+                onPendingSearchQueryConsumed = onPendingSearchQueryConsumed,
             )
         }
     }
@@ -634,6 +685,8 @@ private fun AppNavHost(
     navController: NavHostController,
     userViewModel: UserViewModel,
     startDestination: String,
+    pendingSearchQuery: String? = null,
+    onPendingSearchQueryConsumed: () -> Unit = {},
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -669,6 +722,8 @@ private fun AppNavHost(
             composable(Screen.Issues.route) {
                 val viewModel: IssueViewModel = hiltViewModel()
                 IssueListScreen(
+                    initialSearchQuery = pendingSearchQuery,
+                    onInitialSearchQueryConsumed = onPendingSearchQueryConsumed,
                     onNavigateToIssue = { issueId ->
                         navController.navigate("issueView/${issueId.value}")
                     },

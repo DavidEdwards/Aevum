@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Overridden in src/debug for applicationIdSuffix .debug -->
+    <string name="app_actions_target_package" translatable="false">dae.aevum</string>
+
+    <string name="app_actions_feature_issues_short">Issues</string>
+    <string name="app_actions_feature_issues_long">Open issues list</string>
+    <string name="app_actions_feature_pending_short">Pending</string>
+    <string name="app_actions_feature_pending_long">Open pending worklogs</string>
+    <string name="app_actions_feature_summary_short">Summary</string>
+    <string name="app_actions_feature_summary_long">Open worklog summary</string>
+
+    <string name="app_actions_start_timer_shortcut">Start timer on %1$s</string>
+</resources>

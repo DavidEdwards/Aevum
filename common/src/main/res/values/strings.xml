@@ -134,8 +134,9 @@
     <string name="proofreader_base_url">Base URL</string>
     <string name="proofreader_api_key">API token</string>
     <string name="proofreader_model">Model</string>
-    <string name="proofreader_connection_timeout">Connection timeout</string>
+    <string name="proofreader_connection_timeout">Request timeout</string>
     <string name="proofreader_connection_timeout_suffix">s</string>
+    <string name="proofreader_connection_timeout_hint">How long to wait for the model to reply. Local models often need 30–120s.</string>
     <string name="proofreader_preset_openai">OpenAI</string>
     <string name="proofreader_preset_openrouter">OpenRouter</string>
     <string name="proofreader_preset_groq">Groq</string>
@@ -156,6 +157,7 @@
     <string name="proofreader_log_missing_key">Missing API token</string>
     <string name="proofreader_log_empty_response">Empty response; keeping original</string>
     <string name="proofreader_log_connect_failed">Could not connect</string>
+    <string name="proofreader_log_timeout">Timed out waiting for response; raise Request timeout</string>
     <string name="proofreader_log_failed">Proofreading failed; keeping original</string>
     <string name="proofreader_log_on_device_check">Checking on-device model…</string>
     <string name="proofreader_log_on_device_download">Downloading on-device model…</string>

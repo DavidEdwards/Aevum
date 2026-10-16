@@ -129,6 +129,11 @@ dependencies {
     implementation(libs.splashscreen)
     // endregion
 
+    // region App Actions / Assistant dynamic shortcuts
+    implementation(libs.core.ktx)
+    implementation(libs.core.google.shortcuts)
+    // endregion
+
     implementation(libs.security.crypto)
 
     testImplementation(libs.junit)

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  App Actions for Google Assistant. Preview with the Assistant plugin; submit via Play Console.
+  adb (debug package dae.aevum.debug):
+  am start -a android.intent.action.VIEW -n dae.aevum.debug/dae.aevum.MainActivity -e assistant_search_query PROJ-1
+  am start -a android.intent.action.VIEW -n dae.aevum.debug/dae.aevum.MainActivity -e assistant_open_feature summary
+  am start -a dae.aevum.action.ASSISTANT_START_TIMER -n dae.aevum.debug/dae.aevum.MainActivity -e assistant_start_issue_key PROJ-1
+  am start -a dae.aevum.action.ASSISTANT_STOP_TIMER -n dae.aevum.debug/dae.aevum.MainActivity
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Required when the app exposes search -->
+    <capability android:name="actions.intent.GET_THING">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="@string/app_actions_target_package"
+            android:targetClass="dae.aevum.MainActivity">
+            <parameter
+                android:name="thing.name"
+                android:key="assistant_search_query" />
+        </intent>
+    </capability>
+
+    <!-- Open Issues, Pending, or Summary -->
+    <capability android:name="actions.intent.OPEN_APP_FEATURE">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="@string/app_actions_target_package"
+            android:targetClass="dae.aevum.MainActivity">
+            <parameter
+                android:name="feature"
+                android:key="assistant_open_feature" />
+        </intent>
+    </capability>
+
+    <shortcut
+        android:shortcutId="issues"
+        android:shortcutShortLabel="@string/app_actions_feature_issues_short"
+        android:shortcutLongLabel="@string/app_actions_feature_issues_long">
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding
+                android:key="feature"
+                android:value="@array/app_actions_feature_issues_synonyms" />
+        </capability-binding>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="worklogs"
+        android:shortcutShortLabel="@string/app_actions_feature_pending_short"
+        android:shortcutLongLabel="@string/app_actions_feature_pending_long">
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding
+                android:key="feature"
+                android:value="@array/app_actions_feature_pending_synonyms" />
+        </capability-binding>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="summary"
+        android:shortcutShortLabel="@string/app_actions_feature_summary_short"
+        android:shortcutLongLabel="@string/app_actions_feature_summary_long">
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding
+                android:key="feature"
+                android:value="@array/app_actions_feature_summary_synonyms" />
+        </capability-binding>
+    </shortcut>
+
+    <!-- Custom: start timer on an issue key (en-US query patterns) -->
+    <capability
+        android:name="custom.actions.intent.START_TIMER"
+        app:queryPatterns="@array/app_actions_start_timer_queries">
+        <intent
+            android:action="dae.aevum.action.ASSISTANT_START_TIMER"
+            android:targetPackage="@string/app_actions_target_package"
+            android:targetClass="dae.aevum.MainActivity">
+            <parameter
+                android:name="issueKey"
+                android:key="assistant_start_issue_key"
+                android:mimeType="https://schema.org/Text" />
+        </intent>
+    </capability>
+
+    <!-- Custom: stop active timer and open summary dialog -->
+    <capability
+        android:name="custom.actions.intent.STOP_TIMER"
+        app:queryPatterns="@array/app_actions_stop_timer_queries">
+        <intent
+            android:action="dae.aevum.action.ASSISTANT_STOP_TIMER"
+            android:targetPackage="@string/app_actions_target_package"
+            android:targetClass="dae.aevum.MainActivity" />
+    </capability>
+</shortcuts>

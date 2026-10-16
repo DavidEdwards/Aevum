@@ -1,6 +1,7 @@
 package dae.aevum
 
 import android.app.Application
+import dae.aevum.assistant.AssistantShortcutsSync
 import dae.aevum.domain.repositories.JiraRepository
 import dae.aevum.domain.repositories.WearActiveTimerSync
 import dae.aevum.timer.TimerForegroundService
@@ -23,6 +24,9 @@ class App : Application() {
     @Inject
     lateinit var wearActiveTimerSync: WearActiveTimerSync
 
+    @Inject
+    lateinit var assistantShortcutsSync: AssistantShortcutsSync
+
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
@@ -30,6 +34,7 @@ class App : Application() {
         Timber.plant(Timber.DebugTree())
         observeActiveTimer()
         observeRecentIssues()
+        assistantShortcutsSync.start(applicationScope)
     }
 
     private fun observeActiveTimer() {

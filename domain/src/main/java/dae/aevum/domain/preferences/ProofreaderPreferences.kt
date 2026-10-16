@@ -45,8 +45,8 @@ data class ProofreaderConfig(
     val endpointUrl: String = DEFAULT_OLLAMA_URL,
     val model: String = DEFAULT_OLLAMA_MODEL,
     /**
-     * Max seconds for connect + waiting for the LLM HTTP response.
-     * Applied to OkHttp connect, read, and call timeouts.
+     * Max seconds to wait for the full LLM HTTP response (OkHttp read + call).
+     * Connect uses a shorter cap via [connectTimeoutSeconds].
      */
     val connectionTimeoutSeconds: Int = DEFAULT_CONNECTION_TIMEOUT_SECONDS,
     /** Present only in memory when loaded via [ProofreaderPreferences.current]; not stored in DataStore. */
@@ -59,9 +59,13 @@ data class ProofreaderConfig(
         const val DEFAULT_OLLAMA_MODEL = "gemma3:4b"
         const val DEFAULT_OPENAI_URL = "https://api.openai.com/v1"
         const val DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
-        const val DEFAULT_CONNECTION_TIMEOUT_SECONDS = 30
-        const val MIN_CONNECTION_TIMEOUT_SECONDS = 1
+        const val DEFAULT_CONNECTION_TIMEOUT_SECONDS = 60
+        /** Local LLMs need tens of seconds; 1s only cancels the call before the model replies. */
+        const val MIN_CONNECTION_TIMEOUT_SECONDS = 15
         const val MAX_CONNECTION_TIMEOUT_SECONDS = 600
+
+        /** Cap for TCP connect so a short request timeout still allows a LAN handshake. */
+        const val MAX_CONNECT_TIMEOUT_SECONDS = 10
 
         /** @deprecated Use [DEFAULT_OLLAMA_URL]. */
         const val DEFAULT_ENDPOINT_URL = DEFAULT_OLLAMA_URL
@@ -71,6 +75,15 @@ data class ProofreaderConfig(
 
         fun clampConnectionTimeoutSeconds(seconds: Int): Int =
             seconds.coerceIn(MIN_CONNECTION_TIMEOUT_SECONDS, MAX_CONNECTION_TIMEOUT_SECONDS)
+
+        /** Seconds allowed for establishing the TCP/TLS connection. */
+        fun connectTimeoutSeconds(requestTimeoutSeconds: Int): Int =
+            clampConnectionTimeoutSeconds(requestTimeoutSeconds)
+                .coerceAtMost(MAX_CONNECT_TIMEOUT_SECONDS)
+
+        /** Seconds allowed for waiting on the model response body. */
+        fun requestTimeoutSeconds(requestTimeoutSeconds: Int): Int =
+            clampConnectionTimeoutSeconds(requestTimeoutSeconds)
     }
 }
 

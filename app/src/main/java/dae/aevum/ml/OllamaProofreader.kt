@@ -14,8 +14,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
-import java.net.ConnectException
-import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -105,22 +103,21 @@ class OllamaProofreader
                     }
                 } catch (e: Throwable) {
                     maybeSignalLocalNetworkPermission(e, config.endpointUrl)
-                    progress.log(R.string.proofreader_log_connect_failed)
+                    progress.log(ProofreaderHttpErrors.logRes(e))
                     Timber.e(e, "OllamaProofreader: Error; returning original text")
                     text
                 }
             }
 
         private fun clientFor(timeoutSeconds: Int): OkHttpClient {
-            val seconds =
-                ProofreaderConfig
-                    .clampConnectionTimeoutSeconds(timeoutSeconds)
-                    .toLong()
+            val connectSeconds = ProofreaderConfig.connectTimeoutSeconds(timeoutSeconds).toLong()
+            val requestSeconds = ProofreaderConfig.requestTimeoutSeconds(timeoutSeconds).toLong()
             return baseHttpClient
                 .newBuilder()
-                .callTimeout(seconds, TimeUnit.SECONDS)
-                .connectTimeout(seconds, TimeUnit.SECONDS)
-                .readTimeout(seconds, TimeUnit.SECONDS)
+                .callTimeout(requestSeconds, TimeUnit.SECONDS)
+                .connectTimeout(connectSeconds, TimeUnit.SECONDS)
+                .readTimeout(requestSeconds, TimeUnit.SECONDS)
+                .writeTimeout(connectSeconds, TimeUnit.SECONDS)
                 .build()
         }
 
@@ -128,12 +125,9 @@ class OllamaProofreader
             error: Throwable,
             endpointUrl: String,
         ) {
-            val connectFailed =
-                error is SocketTimeoutException ||
-                    error is ConnectException ||
-                    error.cause is SocketTimeoutException ||
-                    error.cause is ConnectException
-            if (connectFailed && LocalNetworkUrls.looksLikeLocalNetworkUrl(endpointUrl)) {
+            if (ProofreaderHttpErrors.isConnectFailure(error) &&
+                LocalNetworkUrls.looksLikeLocalNetworkUrl(endpointUrl)
+            ) {
                 Timber.i("OllamaProofreader: LAN connect failed; requesting local network permission")
                 localNetworkPermissionGate.notifyAccessRequired()
             }

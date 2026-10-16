@@ -14,8 +14,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
-import java.net.ConnectException
-import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,7 +23,7 @@ import javax.inject.Singleton
  * (OpenAI, Azure OpenAI, Groq, OpenRouter, LM Studio, Ollama `/v1`, etc.).
  *
  * [ProofreaderConfig.endpointUrl] should be the API root (e.g. `https://api.openai.com/v1`);
- * requests go to `{url}/chat/completions` with a Bearer token.
+ * requests go to `{url}/chat/completions` with an optional Bearer token.
  */
 @Singleton
 class OpenAiCompatibleProofreader
@@ -42,7 +40,8 @@ class OpenAiCompatibleProofreader
         ): String =
             withContext(Dispatchers.IO) {
                 if (text.isBlank()) return@withContext text
-                if (config.apiKey.isBlank()) {
+                val localEndpoint = LocalNetworkUrls.looksLikeLocalNetworkUrl(config.endpointUrl)
+                if (config.apiKey.isBlank() && !localEndpoint) {
                     Timber.w("OpenAiCompatibleProofreader: Missing API key; returning original text")
                     progress.log(R.string.proofreader_log_missing_key)
                     return@withContext text
@@ -69,14 +68,16 @@ class OpenAiCompatibleProofreader
                                 ),
                         ).put("temperature", 0.2)
 
-                val request =
+                val requestBuilder =
                     Request
                         .Builder()
                         .url(url)
                         .addHeader("Accept", "application/json")
-                        .addHeader("Authorization", "Bearer ${config.apiKey}")
                         .post(json.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                        .build()
+                if (config.apiKey.isNotBlank()) {
+                    requestBuilder.addHeader("Authorization", "Bearer ${config.apiKey}")
+                }
+                val request = requestBuilder.build()
 
                 try {
                     progress.log(R.string.proofreader_log_waiting)
@@ -120,22 +121,21 @@ class OpenAiCompatibleProofreader
                     }
                 } catch (e: Throwable) {
                     maybeSignalLocalNetworkPermission(e, config.endpointUrl)
-                    progress.log(R.string.proofreader_log_connect_failed)
+                    progress.log(ProofreaderHttpErrors.logRes(e))
                     Timber.e(e, "OpenAiCompatibleProofreader: Error; returning original text")
                     text
                 }
             }
 
         private fun clientFor(timeoutSeconds: Int): OkHttpClient {
-            val seconds =
-                ProofreaderConfig
-                    .clampConnectionTimeoutSeconds(timeoutSeconds)
-                    .toLong()
+            val connectSeconds = ProofreaderConfig.connectTimeoutSeconds(timeoutSeconds).toLong()
+            val requestSeconds = ProofreaderConfig.requestTimeoutSeconds(timeoutSeconds).toLong()
             return baseHttpClient
                 .newBuilder()
-                .callTimeout(seconds, TimeUnit.SECONDS)
-                .connectTimeout(seconds, TimeUnit.SECONDS)
-                .readTimeout(seconds, TimeUnit.SECONDS)
+                .callTimeout(requestSeconds, TimeUnit.SECONDS)
+                .connectTimeout(connectSeconds, TimeUnit.SECONDS)
+                .readTimeout(requestSeconds, TimeUnit.SECONDS)
+                .writeTimeout(connectSeconds, TimeUnit.SECONDS)
                 .build()
         }
 
@@ -143,12 +143,9 @@ class OpenAiCompatibleProofreader
             error: Throwable,
             endpointUrl: String,
         ) {
-            val connectFailed =
-                error is SocketTimeoutException ||
-                    error is ConnectException ||
-                    error.cause is SocketTimeoutException ||
-                    error.cause is ConnectException
-            if (connectFailed && LocalNetworkUrls.looksLikeLocalNetworkUrl(endpointUrl)) {
+            if (ProofreaderHttpErrors.isConnectFailure(error) &&
+                LocalNetworkUrls.looksLikeLocalNetworkUrl(endpointUrl)
+            ) {
                 Timber.i("OpenAiCompatibleProofreader: LAN connect failed; requesting local network permission")
                 localNetworkPermissionGate.notifyAccessRequired()
             }

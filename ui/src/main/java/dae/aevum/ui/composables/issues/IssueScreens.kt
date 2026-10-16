@@ -61,6 +61,8 @@ fun IssueListScreen(
     onTogglePinIssue: (IssueId) -> Unit = {},
     worklogViewModel: WorklogViewModel = hiltViewModel(),
     onNavigateToSummary: () -> Unit = {},
+    initialSearchQuery: String? = null,
+    onInitialSearchQueryConsumed: () -> Unit = {},
 ) {
     val activeUser by viewModel.activeUser.collectAsState(initial = null)
     if (activeUser == null) {
@@ -72,6 +74,12 @@ fun IssueListScreen(
         Timber.v("Reload issue list screen")
         viewModel.refreshIssues()
         worklogViewModel.refreshWorklogsToday()
+    }
+
+    LaunchedEffect(initialSearchQuery) {
+        val query = initialSearchQuery ?: return@LaunchedEffect
+        viewModel.searchTerm = query
+        onInitialSearchQueryConsumed()
     }
 
     IssueList(

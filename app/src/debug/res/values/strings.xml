@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Aevum Debug</string>
+    <string name="app_actions_target_package" translatable="false">dae.aevum.debug</string>
 </resources>

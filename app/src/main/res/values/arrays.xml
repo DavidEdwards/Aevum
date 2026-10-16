@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="app_actions_feature_issues_synonyms">
+        <item>issues</item>
+        <item>issue list</item>
+        <item>tickets</item>
+        <item>jira issues</item>
+    </string-array>
+
+    <string-array name="app_actions_feature_pending_synonyms">
+        <item>pending</item>
+        <item>pending worklogs</item>
+        <item>worklogs</item>
+        <item>upload queue</item>
+    </string-array>
+
+    <string-array name="app_actions_feature_summary_synonyms">
+        <item>summary</item>
+        <item>timesheet</item>
+        <item>worklog summary</item>
+        <item>time summary</item>
+    </string-array>
+
+    <!-- Patterns after "open/start Example App and …" (en-US only for custom intents) -->
+    <string-array name="app_actions_start_timer_queries">
+        <item>start timer on $issueKey</item>
+        <item>start logging on $issueKey</item>
+        <item>log time on $issueKey</item>
+        <item>track time on $issueKey</item>
+        <item>begin timer on $issueKey</item>
+        <item>start timer for $issueKey</item>
+        <item>log time for $issueKey</item>
+    </string-array>
+
+    <string-array name="app_actions_stop_timer_queries">
+        <item>stop timer</item>
+        <item>stop logging</item>
+        <item>stop tracking</item>
+        <item>end timer</item>
+        <item>finish timer</item>
+        <item>stop the timer</item>
+        <item>stop logging time</item>
+    </string-array>
+</resources>

@@ -808,6 +808,9 @@ private fun ProofreaderSection(
                 suffix = {
                     Text(stringResource(R.string.proofreader_connection_timeout_suffix))
                 },
+                supportingText = {
+                    Text(stringResource(R.string.proofreader_connection_timeout_hint))
+                },
             )
         }
     }
